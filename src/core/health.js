@@ -309,6 +309,35 @@ export async function launch({ port, kill_existing, _deps } = {}) {
   };
 
   let tvPath = null;
+if (platform === 'win32') {
+  const localRoot = join(
+    process.env.LOCALAPPDATA || '',
+    'tradingview-mcp'
+  );
+
+  try {
+    const appx = deps.execSync(
+      'powershell -NoProfile -Command "(Get-AppxPackage -Name \'TradingView.Desktop\' -ErrorAction SilentlyContinue).InstallLocation"',
+      { timeout: 5000 }
+    ).toString().trim();
+
+    if (appx) {
+      const pkgName = basename(appx);
+      const localDir = join(localRoot, pkgName);
+      const localExe = join(localDir, 'TradingView.exe');
+
+      if (!deps.existsSync(localExe)) {
+        deps.cpSync(appx, localDir, { recursive: true });
+      }
+
+      if (deps.existsSync(localExe)) {
+        tvPath = localExe;
+      }
+    }
+  } catch {
+    // Fall back to normal path detection below.
+  }
+}
   const candidates = pathMap[platform] || pathMap.linux;
   for (const p of candidates) {
     if (p && deps.existsSync(p)) { tvPath = p; break; }
