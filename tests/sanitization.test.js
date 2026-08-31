@@ -290,7 +290,14 @@ describe('source audit — no unsafe interpolation patterns', () => {
   const CORE_DIR = new URL('../src/core/', import.meta.url).pathname;
   const coreFiles = readdirSync(CORE_DIR).filter(f => f.endsWith('.js'));
 
+  // health.js's _psQuote() escapes a literal for a PowerShell single-quoted
+  // string (Start-Process -ArgumentList), not a JS string literal for
+  // evaluate() — safeString() produces JSON/JS-escaped output, which is the
+  // wrong escaping for that context, so this file has its own quoting helper.
+  const REPLACE_QUOTE_ALLOWLIST = new Set(['health.js']);
+
   for (const file of coreFiles) {
+    if (REPLACE_QUOTE_ALLOWLIST.has(file)) continue;
     it(`${file} has no .replace(/'/g) manual escaping`, () => {
       const source = readFileSync(join(CORE_DIR, file), 'utf8');
       assert.ok(!source.includes(".replace(/'/g,"),

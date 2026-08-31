@@ -8,16 +8,25 @@
  * object below makes `spawn` throw if called at all, as a regression guard:
  * these tests fail loudly if Windows launches ever start using it again.
  *
+ * This suite exercises Windows-only logic via _deps.platform, so it runs on
+ * any host OS. launch() reads process.env.LOCALAPPDATA directly (it isn't
+ * injectable via _deps), so it's pinned to a realistic Windows value below
+ * when the host doesn't already have one (e.g. running on Linux/macOS CI).
+ *
  * Covers: MSIX WindowsApps attempt, local-copy fallback when the WindowsApps
- * attempt fails or CDP never binds, copy reuse, the real PowerShell command
- * construction, and classic (non-MSIX) installs.
+ * attempt fails or CDP never binds, the fallback marker that skips the
+ * doomed direct-launch wait on repeat launches, copy reuse, the real
+ * PowerShell command construction, and classic (non-MSIX) installs.
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { win32 as winPath } from 'node:path';
 import { launch } from '../src/core/health.js';
 
+process.env.LOCALAPPDATA ||= 'C:\\Users\\Test\\AppData\\Local';
+
 const MSIX_EXE = 'C:\\Program Files\\WindowsApps\\TradingView.Desktop_3.1.0.7818_x64__n534cwy3pjxzj\\TradingView.exe';
-const LOCAL_COPY_EXE = `${process.env.LOCALAPPDATA || ''}\\tradingview-mcp\\TradingView.Desktop_3.1.0.7818_x64__n534cwy3pjxzj\\TradingView.exe`;
+const LOCAL_COPY_EXE = winPath.join(process.env.LOCALAPPDATA, 'tradingview-mcp', 'TradingView.Desktop_3.1.0.7818_x64__n534cwy3pjxzj', 'TradingView.exe');
 const CDP_VERSION = JSON.stringify({ Browser: 'Chrome/140', 'User-Agent': 'TVDesktop/3.1.0' });
 
 // spawn() must never be invoked for a win32 launch — see file header.
@@ -32,12 +41,15 @@ const spawnMustNotBeCalled = () => { throw new Error('spawn() must not be used o
  *                    PowerShell/Start-Process failing for that binary (e.g. real-world EPERM)
  *   cdpBindsFor    — exe paths (substring) after which probeCdp starts succeeding
  *   copyExists     — local copy already present
+ *   fallbackMarkerPresent — a prior launch already recorded this package as needing the local-copy workaround
  */
-function msixDeps({ launchFailures = [], cdpBindsFor = [], copyExists = false } = {}) {
-  const state = { psLaunches: [], copies: [], removed: [], killed: 0, cdpUp: false };
+function msixDeps({ launchFailures = [], cdpBindsFor = [], copyExists = false, fallbackMarkerPresent = false } = {}) {
+  const state = { psLaunches: [], copies: [], removed: [], killed: 0, cdpUp: false, markersWritten: [], delayCalls: 0 };
   const deps = {
+    platform: 'win32',
     existsSync: (p) => {
       if (p === MSIX_EXE) return true;
+      if (p.endsWith('.cdp-fallback-required')) return fallbackMarkerPresent;
       if (p.includes('tradingview-mcp')) return copyExists || state.copies.length > 0;
       return false;
     },
@@ -58,16 +70,14 @@ function msixDeps({ launchFailures = [], cdpBindsFor = [], copyExists = false } 
     cpSync: (src, dst) => { state.copies.push({ src, dst }); },
     rmSync: (p) => { state.removed.push(p); },
     readdirSync: () => ['TradingView.Desktop_3.0.0.7652_x64__n534cwy3pjxzj'],
-    delay: async () => {},
+    writeFileSync: (p) => { state.markersWritten.push(p); },
+    delay: async () => { state.delayCalls++; },
     probeCdp: async () => (state.cdpUp ? CDP_VERSION : null),
   };
   return { deps, state };
 }
 
-// launch() only takes the MSIX/win32 code paths tested here on win32; skip elsewhere.
-const onWindows = process.platform === 'win32';
-
-describe('launch() — MSIX WindowsApps handling', { skip: !onWindows }, () => {
+describe('launch() — MSIX WindowsApps handling', () => {
   it('direct WindowsApps launch that binds CDP does not copy', async () => {
     const { deps, state } = msixDeps({ cdpBindsFor: ['WindowsApps'] });
     const result = await launch({ _deps: deps });
@@ -110,6 +120,27 @@ describe('launch() — MSIX WindowsApps handling', { skip: !onWindows }, () => {
     assert.equal(state.psLaunches.length, 2);
     assert.match(state.psLaunches[0].exe, /WindowsApps/);
     assert.match(state.psLaunches[1].exe, /tradingview-mcp/);
+    // records that this package version needs the workaround, so future
+    // launches can skip straight to it
+    assert.equal(state.markersWritten.length, 1);
+    assert.match(state.markersWritten[0], /\.cdp-fallback-required$/);
+  });
+
+  it('a known-broken marker skips the doomed direct-launch wait', async () => {
+    const { deps, state } = msixDeps({ cdpBindsFor: ['tradingview-mcp'], fallbackMarkerPresent: true });
+    const result = await launch({ _deps: deps });
+    assert.equal(result.success, true);
+    assert.equal(result.msix_local_copy, true);
+    assert.equal(state.psLaunches.length, 2);
+    // Without the marker, _waitForCdp would loop up to 15 times against the
+    // direct WindowsApps attempt (which never binds here) before falling
+    // back — each iteration calls delay() once, on top of the two
+    // killExisting() delays (initial kill + pre-fallback kill) and the local
+    // copy's single successful poll. The marker skips that 15-iteration wait
+    // entirely, so only those other calls remain — nowhere near 15+.
+    assert.ok(state.delayCalls < 5, `expected the direct-launch wait to be skipped, got ${state.delayCalls} delay() calls`);
+    // already known broken — no need to re-record it
+    assert.equal(state.markersWritten.length, 0);
   });
 
   it('reuses an existing local copy without re-copying', async () => {
@@ -131,7 +162,7 @@ describe('launch() — MSIX WindowsApps handling', { skip: !onWindows }, () => {
   });
 });
 
-describe('launch() — PowerShell Start-Process command (real implementation)', { skip: !onWindows }, () => {
+describe('launch() — PowerShell Start-Process command (real implementation)', () => {
   // Exercises the default startWindowsProcess implementation (not mocked away)
   // via a classic (non-MSIX) install, so exactly one PowerShell launch happens.
   // Intercepts the `powershell -EncodedCommand ...` call at the execSync layer,
@@ -141,6 +172,7 @@ describe('launch() — PowerShell Start-Process command (real implementation)', 
   function psRealDeps({ psOutput = '54321\n' } = {}) {
     const state = { killed: 0, psCommands: [], lastScript: null };
     const deps = {
+      platform: 'win32',
       existsSync: (p) => p === classicExe,
       execSync: (cmd) => {
         if (cmd.includes('taskkill')) { state.killed++; return ''; }
@@ -180,11 +212,12 @@ describe('launch() — PowerShell Start-Process command (real implementation)', 
   });
 });
 
-describe('launch() — classic install path', { skip: !onWindows }, () => {
+describe('launch() — classic install path', () => {
   it('launches classic LOCALAPPDATA install via PowerShell, without MSIX logic', async () => {
     const classicExe = `${process.env.LOCALAPPDATA}\\TradingView\\TradingView.exe`;
     const state = { psLaunches: [] };
     const deps = {
+      platform: 'win32',
       existsSync: (p) => p === classicExe,
       execSync: (cmd) => { if (cmd.includes('taskkill')) return ''; throw new Error(`unexpected: ${cmd}`); },
       spawn: spawnMustNotBeCalled,
@@ -206,6 +239,7 @@ describe('launch() — classic install path', { skip: !onWindows }, () => {
   it('throws immediately when the PowerShell launch fails for a classic install (no fallback exists)', async () => {
     const classicExe = `${process.env.LOCALAPPDATA}\\TradingView\\TradingView.exe`;
     const deps = {
+      platform: 'win32',
       existsSync: (p) => p === classicExe,
       execSync: (cmd) => { if (cmd.includes('taskkill')) return ''; throw new Error(`unexpected: ${cmd}`); },
       spawn: spawnMustNotBeCalled,
@@ -219,8 +253,36 @@ describe('launch() — classic install path', { skip: !onWindows }, () => {
     await assert.rejects(() => launch({ _deps: deps }), /Failed to launch TradingView via PowerShell Start-Process: spawn EPERM/);
   });
 
+  it('never queries or copies the MSIX package when a classic install exists', async () => {
+    // Regression test: launch() previously ran the Get-AppxPackage lookup
+    // (and could copy the ~330MB package) unconditionally, before even
+    // checking for a classic install. Guard against that reappearing.
+    const classicExe = `${process.env.LOCALAPPDATA}\\TradingView\\TradingView.exe`;
+    const state = { psLaunches: [] };
+    const deps = {
+      platform: 'win32',
+      existsSync: (p) => p === classicExe,
+      execSync: (cmd) => {
+        if (cmd.includes('Get-AppxPackage')) throw new Error('should not query Appx when a classic install exists');
+        if (cmd.includes('taskkill')) return '';
+        throw new Error(`unexpected: ${cmd}`);
+      },
+      spawn: spawnMustNotBeCalled,
+      startWindowsProcess: (exe, args) => { state.psLaunches.push({ exe, args }); return 54321; },
+      cpSync: () => { throw new Error('should not copy'); },
+      rmSync: () => {},
+      readdirSync: () => [],
+      delay: async () => {},
+      probeCdp: async () => CDP_VERSION,
+    };
+    const result = await launch({ _deps: deps });
+    assert.equal(result.success, true);
+    assert.equal(result.binary, classicExe);
+  });
+
   it('throws a helpful error when TradingView is not found', async () => {
     const deps = {
+      platform: 'win32',
       existsSync: () => false,
       execSync: () => { throw new Error('not found'); },
       spawn: spawnMustNotBeCalled,
