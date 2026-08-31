@@ -2,9 +2,13 @@
  * Core health/discovery/launch logic.
  */
 import { getClient, getTargetInfo, evaluate, CDP_HOST, CDP_PORT } from '../connection.js';
-import { existsSync, cpSync, rmSync, readdirSync } from 'fs';
+import { existsSync, cpSync, rmSync, readdirSync, writeFileSync } from 'fs';
 import { execSync, spawn } from 'child_process';
-import { dirname, basename, join } from 'path';
+// These paths (WindowsApps installs, %LOCALAPPDATA% cache) are always
+// Windows-style, regardless of the OS Node itself happens to run on — pin to
+// win32 semantics explicitly rather than the platform-dependent default.
+import { win32 as winPath } from 'path';
+const { dirname, basename, join } = winPath;
 
 // Best-effort git-pull update check: compare local HEAD to origin's default
 // branch on GitHub. Never throws — returns null on any failure (offline,
@@ -203,12 +207,14 @@ const WINDOWS_APPS_RE = /\\WindowsApps\\/i;
 
 function _resolveLaunchDeps(deps) {
   return {
+    platform: deps?.platform || process.platform,
     spawn: deps?.spawn || spawn,
     execSync: deps?.execSync || execSync,
     existsSync: deps?.existsSync || existsSync,
     cpSync: deps?.cpSync || cpSync,
     rmSync: deps?.rmSync || rmSync,
     readdirSync: deps?.readdirSync || readdirSync,
+    writeFileSync: deps?.writeFileSync || writeFileSync,
     delay: deps?.delay || ((ms) => new Promise((r) => setTimeout(r, ms))),
     probeCdp: deps?.probeCdp || _probeCdp,
   };
@@ -283,11 +289,20 @@ function _copyMsixPackageLocal(tvPath, { cpSync, rmSync, readdirSync, existsSync
   return dstExe;
 }
 
+// Once a launch has needed the local-copy workaround for a given package
+// version, the underlying OS behavior doesn't change between runs — so we
+// record that fact and skip straight to the copy next time instead of
+// re-paying the ~16s direct-launch-then-timeout dance on every tv_launch call.
+function _fallbackMarkerFor(msixExePath) {
+  const pkgName = basename(dirname(msixExePath));
+  return join(process.env.LOCALAPPDATA || '', 'tradingview-mcp', pkgName, '.cdp-fallback-required');
+}
+
 export async function launch({ port, kill_existing, _deps } = {}) {
   const deps = _resolveLaunchDeps(_deps);
   const cdpPort = port || CDP_PORT;
   const killFirst = kill_existing !== false;
-  const platform = process.platform;
+  const platform = deps.platform;
 
   const pathMap = {
     darwin: [
@@ -309,35 +324,6 @@ export async function launch({ port, kill_existing, _deps } = {}) {
   };
 
   let tvPath = null;
-if (platform === 'win32') {
-  const localRoot = join(
-    process.env.LOCALAPPDATA || '',
-    'tradingview-mcp'
-  );
-
-  try {
-    const appx = deps.execSync(
-      'powershell -NoProfile -Command "(Get-AppxPackage -Name \'TradingView.Desktop\' -ErrorAction SilentlyContinue).InstallLocation"',
-      { timeout: 5000 }
-    ).toString().trim();
-
-    if (appx) {
-      const pkgName = basename(appx);
-      const localDir = join(localRoot, pkgName);
-      const localExe = join(localDir, 'TradingView.exe');
-
-      if (!deps.existsSync(localExe)) {
-        deps.cpSync(appx, localDir, { recursive: true });
-      }
-
-      if (deps.existsSync(localExe)) {
-        tvPath = localExe;
-      }
-    }
-  } catch {
-    // Fall back to normal path detection below.
-  }
-}
   const candidates = pathMap[platform] || pathMap.linux;
   for (const p of candidates) {
     if (p && deps.existsSync(p)) { tvPath = p; break; }
@@ -346,8 +332,10 @@ if (platform === 'win32') {
   if (!tvPath && platform === 'win32') {
     // MSIX/Windows Store install — InstallLocation is in WindowsApps, which is ACL-restricted
     // for normal `dir` enumeration but readable via Get-AppxPackage without elevation.
+    // Only used when no classic install exists — direct launch from here is
+    // tried first below; the local-copy workaround is a fallback, not the default.
     try {
-      const ps = 'powershell -NoProfile -Command "(Get-AppxPackage -Name \'TradingView.Desktop\' -ErrorAction SilentlyContinue).InstallLocation"';
+      const ps = 'powershell -NoProfile -NonInteractive -Command "(Get-AppxPackage -Name \'TradingView.Desktop\' -ErrorAction SilentlyContinue).InstallLocation"';
       const installDir = deps.execSync(ps, { timeout: 5000 }).toString().trim();
       if (installDir) {
         const candidate = `${installDir}\\TradingView.exe`;
@@ -394,9 +382,15 @@ if (platform === 'win32') {
   let usedLocalCopy = false;
 
   if (platform === 'win32' && WINDOWS_APPS_RE.test(tvPath)) {
-    const earlyFailure = await _spawnFailedEarly(child);
-    if (!earlyFailure) {
-      info = await _waitForCdp({ cdpPort, attempts: 15, delay: deps.delay, probeCdp: deps.probeCdp });
+    // If a prior launch already had to fall back for this exact package
+    // version, the OS-level block is deterministic — skip straight to the
+    // local copy instead of re-waiting out the doomed direct attempt.
+    const knownBroken = deps.existsSync(_fallbackMarkerFor(tvPath));
+    if (!knownBroken) {
+      const earlyFailure = await _spawnFailedEarly(child);
+      if (!earlyFailure) {
+        info = await _waitForCdp({ cdpPort, attempts: 15, delay: deps.delay, probeCdp: deps.probeCdp });
+      }
     }
     if (!info) {
       // Direct WindowsApps launch was blocked or CDP never bound — fall back to
@@ -406,6 +400,9 @@ if (platform === 'win32') {
       child = _spawnDetached(deps.spawn, localExe, cdpArgs);
       tvPath = localExe;
       usedLocalCopy = true;
+      if (!knownBroken) {
+        try { deps.writeFileSync(_fallbackMarkerFor(localExe), ''); } catch { /* best-effort */ }
+      }
     }
   }
 
