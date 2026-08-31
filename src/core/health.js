@@ -202,15 +202,17 @@ export async function uiState() {
 const WINDOWS_APPS_RE = /\\WindowsApps\\/i;
 
 function _resolveLaunchDeps(deps) {
+  const execSyncFn = deps?.execSync || execSync;
   return {
     spawn: deps?.spawn || spawn,
-    execSync: deps?.execSync || execSync,
+    execSync: execSyncFn,
     existsSync: deps?.existsSync || existsSync,
     cpSync: deps?.cpSync || cpSync,
     rmSync: deps?.rmSync || rmSync,
     readdirSync: deps?.readdirSync || readdirSync,
     delay: deps?.delay || ((ms) => new Promise((r) => setTimeout(r, ms))),
     probeCdp: deps?.probeCdp || _probeCdp,
+    startWindowsProcess: deps?.startWindowsProcess || ((exe, args) => _startWindowsProcessViaPowerShell(execSyncFn, exe, args)),
   };
 }
 
@@ -227,23 +229,47 @@ async function _probeCdp(cdpPort) {
   });
 }
 
+function _psQuote(str) {
+  return `'${String(str).replace(/'/g, "''")}'`;
+}
+
+/**
+ * Launches a Windows executable via PowerShell's `Start-Process` instead of
+ * Node's child_process.spawn(). Node's detached spawn() can throw EPERM —
+ * sometimes synchronously — for both the WindowsApps binary and the locally
+ * copied TradingView binary on some Windows setups, even though the same
+ * binaries launch fine through PowerShell. This is therefore the primary
+ * launch mechanism for every Windows launch attempt, not a fallback.
+ * -EncodedCommand sidesteps cmd.exe/PowerShell quoting entirely — exe path
+ * and args are never concatenated into a shell string.
+ */
+function _startWindowsProcessViaPowerShell(execSyncFn, exe, args) {
+  const argList = args.map(_psQuote).join(',');
+  const script = `$p = Start-Process -FilePath ${_psQuote(exe)} -ArgumentList ${argList} -PassThru; Write-Output $p.Id`;
+  const encoded = Buffer.from(script, 'utf16le').toString('base64');
+  const out = execSyncFn(`powershell -NoProfile -NonInteractive -EncodedCommand ${encoded}`, { timeout: 10000 }).toString().trim();
+  const pid = parseInt(out, 10);
+  if (!Number.isFinite(pid)) throw new Error(`PowerShell Start-Process did not return a PID (got: "${out}")`);
+  return pid;
+}
+
 function _spawnDetached(spawnFn, exe, args) {
   const child = spawnFn(exe, args, { detached: true, stdio: 'ignore' });
   child.unref();
   return child;
 }
 
-// Resolves once with an error string if the process fails/exits within graceMs,
-// or with null if it survives that long.
-function _spawnFailedEarly(child, graceMs = 1500) {
-  return new Promise((resolve) => {
-    const timer = setTimeout(() => { cleanup(); resolve(null); }, graceMs);
-    const onError = (e) => { cleanup(); resolve(e.code || e.message || 'spawn error'); };
-    const onExit = (code) => { cleanup(); resolve(`exited immediately (code ${code})`); };
-    const cleanup = () => { clearTimeout(timer); child.off?.('error', onError); child.off?.('exit', onExit); };
-    child.on('error', onError);
-    child.on('exit', onExit);
-  });
+/**
+ * Launches exe/args via PowerShell Start-Process and returns { pid, error }
+ * instead of throwing — a launch failure here needs to be inspectable so the
+ * caller can fall back to the local-copy path rather than crashing launch().
+ */
+function _launchWindows(deps, exe, args) {
+  try {
+    return { pid: deps.startWindowsProcess(exe, args), error: null };
+  } catch (e) {
+    return { pid: null, error: e.message || String(e) };
+  }
 }
 
 async function _waitForCdp({ cdpPort, attempts, delay, probeCdp }) {
@@ -360,21 +386,41 @@ export async function launch({ port, kill_existing, _deps } = {}) {
   if (killFirst) await killExisting();
 
   const cdpArgs = [`--remote-debugging-port=${cdpPort}`];
-  let child = _spawnDetached(deps.spawn, tvPath, cdpArgs);
+  let child;
   let info = null;
   let usedLocalCopy = false;
+  let winLaunchError = null;
+
+  if (platform === 'win32') {
+    // PowerShell's Start-Process is the primary launch mechanism on Windows.
+    // Node's detached spawn() can throw EPERM *synchronously* for some
+    // MSIX/WindowsApps and locally-copied TradingView binaries — outside any
+    // try/catch, that crashes launch() before the MSIX fallback below ever
+    // runs. Start-Process launches the same binaries reliably, so it replaces
+    // spawn() entirely here rather than being tried only after spawn() fails.
+    const launched = _launchWindows(deps, tvPath, cdpArgs);
+    child = { pid: launched.pid };
+    winLaunchError = launched.error;
+    // No fallback exists for a non-MSIX install — surface the failure now
+    // instead of burning 15s waiting for CDP on a process that never started.
+    if (winLaunchError && !WINDOWS_APPS_RE.test(tvPath)) {
+      throw new Error(`Failed to launch TradingView via PowerShell Start-Process: ${winLaunchError}`);
+    }
+  } else {
+    child = _spawnDetached(deps.spawn, tvPath, cdpArgs);
+  }
 
   if (platform === 'win32' && WINDOWS_APPS_RE.test(tvPath)) {
-    const earlyFailure = await _spawnFailedEarly(child);
-    if (!earlyFailure) {
+    if (!winLaunchError) {
       info = await _waitForCdp({ cdpPort, attempts: 15, delay: deps.delay, probeCdp: deps.probeCdp });
     }
     if (!info) {
       // Direct WindowsApps launch was blocked or CDP never bound — fall back to
-      // a local copy of the package (see _copyMsixPackageLocal).
+      // a local copy of the package (see _copyMsixPackageLocal), again launched
+      // via PowerShell Start-Process.
       const localExe = _copyMsixPackageLocal(tvPath, deps);
       await killExisting();
-      child = _spawnDetached(deps.spawn, localExe, cdpArgs);
+      child = { pid: deps.startWindowsProcess(localExe, cdpArgs) };
       tvPath = localExe;
       usedLocalCopy = true;
     }
