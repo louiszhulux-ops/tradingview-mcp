@@ -1,0 +1,508 @@
+//@version=6
+// =====================================================================
+// V13 AUDIT - instrumented trade logger
+//
+// Measured design decisions (11 months XAUUSD 15m, $50k, costs modelled
+// at $0.20/oz per side):
+//
+//  1. TREND module uses a FIXED 1.5R target, not a distant liquidity
+//     target. Liquidity targets sat at 2.5R+, tying up the position slot.
+//     Single-position sweep at 0.5% risk:
+//       1.0R -> 244 trades, 44.3% win, PF 1.32, +$4,755, 4.60% DD
+//       1.5R -> 232 trades, 37.1% win, PF 1.35, +$5,669, 3.81% DD  <-- best
+//       2.0R -> 223 trades, 31.8% win, PF 1.28, +$4,621, 4.55% DD
+//
+//  2. RANGE module keeps its range-travel target (80% of the distance to
+//     the far side) and its 2.5R minimum. Forcing the fixed 1.5R target
+//     onto it instead collapsed the whole system to PF 1.05 -- the range
+//     edge IS the trip across the range.
+//
+//  3. SINGLE POSITION. Four concurrent positions on fixed targets gave
+//     PF 1.04: correlated entries stop out together and the largest win
+//     falls to $228. One position at a time also makes every row in the
+//     trade list a real trade (TradingView nets positions, so concurrent
+//     longs and shorts silently offset).
+//
+//  4. NO PARTIAL EXITS. Banking half at 1R lifts win rate 28% -> 51% but
+//     halves net profit and raises drawdown; largest win drops $2,174 ->
+//     $640. Breakeven-after-partial helps (4.39% DD vs 5.19%) but does
+//     not rescue it. The edge is in letting winners reach target.
+//
+//  5. PROP GUARDS: daily loss limit and optional hard max-drawdown halt,
+//     so a losing streak stops trading before it breaches an evaluation
+//     rule rather than after.
+// =====================================================================
+strategy("V13 XAU - AUDIT", overlay=true, max_labels_count=500,
+     initial_capital=50000, currency=currency.USD,
+     default_qty_type=strategy.fixed, default_qty_value=1,
+     pyramiding=4,
+     commission_type=strategy.commission.cash_per_contract, commission_value=0.20,
+     slippage=0)
+// ================= Test window =================
+startTime       = input.time(timestamp("2025-10-01 00:00 +0000"), "Backtest start (UTC)", group="Test")
+endTime         = input.time(timestamp("2026-09-03 23:59 +0000"), "Backtest end (UTC)", group="Test")
+maxConcurrent   = input.int(1, "Max concurrent positions", group="Test")
+
+// ================= Module switches =================
+useTrendModule  = input.bool(true, "Enable TREND module", group="Modules")
+useRangeModule  = input.bool(true, "Enable RANGE module", group="Modules")
+
+// ================= Prop guards =================
+useDailyLimit   = input.bool(true,  "Enable daily loss limit", group="Prop guards")
+dailyLossPct    = input.float(2.0,  "Daily loss limit (%)", group="Prop guards") / 100
+useMaxDD        = input.bool(false, "Enable hard max drawdown halt", group="Prop guards")
+maxDDPct        = input.float(6.0,  "Hard max drawdown (%)", group="Prop guards") / 100
+
+// ================= Sessions =================
+useKillzones    = input.bool(false, "Restrict to killzones", group="Session")
+kzLondon        = input.session("0700-1100", "London killzone (UTC)", group="Session")
+kzNewYork       = input.session("1230-1600", "New York killzone (UTC)", group="Session")
+fullStart       = input.session("0700-1600", "Full-size session (UTC)", group="Session")
+
+// ================= Risk =================
+riskPct         = input.float(0.75, "Risk % per trade", group="Risk") / 100
+useLiqTarget    = input.bool(false, "TREND: target liquidity (else fixed R)", group="Risk")
+minTargetR      = input.float(1.5,  "TREND: min R for a liquidity target", group="Risk")
+fixedRR         = input.float(1.5,  "Fixed target (xR)", group="Risk")
+minConf         = input.int(0,      "Min confluence to enter (0 = take all)", group="Risk")
+logTrades       = input.bool(true,  "Log every closed trade", group="Audit")
+normalizeR      = input.bool(false, "Normalize risk (ignore session/conf size cuts)", group="Audit")
+frontRunATR     = input.float(0.10, "Front-run target by (xATR)", group="Risk")
+maxStopATR      = input.float(1.2,  "Max stop distance (xATR)", group="Risk")
+minStopATR      = input.float(0.15, "Min stop distance (xATR)", group="Risk")
+lowConfMult     = input.float(0.6,  "Size mult when confluence < 2", group="Risk")
+
+// ================= Trend module =================
+emaFastLen      = input.int(50, "HTF EMA fast", group="Trend")
+emaSlowLen      = input.int(200, "HTF EMA slow", group="Trend")
+htfRes          = input.timeframe("60", "HTF resolution", group="Trend")
+atrLen          = input.int(14, "HTF ATR length", group="Trend")
+trendGapATR     = input.float(0.30, "Min EMA gap (xATR)", group="Trend")
+pivotLen        = input.int(5, "Pivot lookback (structure)", group="Trend")
+bosMaxBars      = input.int(15, "Max bars for BOS after sweep", group="Trend")
+entryWaitBars   = input.int(20, "Max bars to wait for retrace", group="Trend")
+buffMult        = input.float(0.15, "Stop buffer (xATR)", group="Trend")
+breakerUpATR    = input.float(0.10, "Breaker zone above level (xATR)", group="Trend")
+breakerDnATR    = input.float(0.25, "Breaker zone below level (xATR)", group="Trend")
+useContinuation = input.bool(true, "Allow BOS+retest without sweep", group="Trend")
+
+// ================= Range module =================
+rangeLen        = input.int(48,   "Range lookback (bars)", group="Range")
+minRangeATR     = input.float(1.5, "Min range height (xATR)", group="Range")
+maxRangeATR     = input.float(6.0, "Max range height (xATR)", group="Range")
+rangeBuffATR    = input.float(0.20, "Range stop buffer (xATR)", group="Range")
+rangeMinR       = input.float(2.5, "Min R for range trade", group="Range")
+rangeTargetPct  = input.float(0.80, "Target as % of range travel", group="Range")
+rangeFixedR     = input.bool(false, "RANGE: use fixed R target instead", group="Range")
+
+// ================= Confluence =================
+roundStep       = input.float(50.0, "Round-number step", group="Confluence")
+roundTolATR     = input.float(0.25, "Round-number tolerance (xATR)", group="Confluence")
+useSMT          = input.bool(true, "Use SMT (DXY divergence)", group="Confluence")
+
+// ================= Safety =================
+volSpikeMult    = input.float(2.5, "Vol spike bar mult", group="Volatility")
+volCooldownBars = input.int(3, "Bars to skip after spike", group="Volatility")
+lossStreakHalt  = input.int(3, "Consecutive losses -> cooldown", group="Circuit breaker")
+cooldownBars    = input.int(48, "Cooldown bars", group="Circuit breaker")
+reentryGapBars  = input.int(3, "Min bars between entries", group="Circuit breaker")
+
+// ================= HTF trend =================
+[emaFast, emaSlow, atrH] = request.security(syminfo.tickerid, htfRes,
+     [ta.ema(close, emaFastLen), ta.ema(close, emaSlowLen), ta.atr(atrLen)],
+     lookahead=barmerge.lookahead_off)
+
+gap = emaFast - emaSlow
+uptrend   = close > emaFast and close > emaSlow and gap >=  trendGapATR * atrH
+downtrend = close < emaFast and close < emaSlow and gap <= -trendGapATR * atrH
+sideways  = not uptrend and not downtrend
+
+// ================= HTF liquidity =================
+pdh = request.security(syminfo.tickerid, "D", high[1], lookahead=barmerge.lookahead_on)
+pdl = request.security(syminfo.tickerid, "D", low[1],  lookahead=barmerge.lookahead_on)
+pwh = request.security(syminfo.tickerid, "W", high[1], lookahead=barmerge.lookahead_on)
+pwl = request.security(syminfo.tickerid, "W", low[1],  lookahead=barmerge.lookahead_on)
+
+// ================= Structure pools =================
+swHigh = ta.pivothigh(high, pivotLen, pivotLen)
+swLow  = ta.pivotlow(low, pivotLen, pivotLen)
+var float lastSwHigh = na
+var float lastSwLow  = na
+var float sh1 = na
+var float sh2 = na
+var float sh3 = na
+var float sh4 = na
+var float sl1 = na
+var float sl2 = na
+var float sl3 = na
+var float sl4 = na
+
+if not na(swHigh)
+    lastSwHigh := swHigh
+    sh4 := sh3
+    sh3 := sh2
+    sh2 := sh1
+    sh1 := swHigh
+if not na(swLow)
+    lastSwLow := swLow
+    sl4 := sl3
+    sl3 := sl2
+    sl2 := sl1
+    sl1 := swLow
+
+a1 = (not na(sh1) and sh1 > close) ? sh1 : na
+a2 = (not na(sh2) and sh2 > close) ? sh2 : na
+a3 = (not na(sh3) and sh3 > close) ? sh3 : na
+a4 = (not na(sh4) and sh4 > close) ? sh4 : na
+a5 = (not na(pdh) and pdh > close) ? pdh : na
+a6 = (not na(pwh) and pwh > close) ? pwh : na
+liqAbove = a1
+liqAbove := na(liqAbove) ? a2 : (na(a2) ? liqAbove : math.min(liqAbove, a2))
+liqAbove := na(liqAbove) ? a3 : (na(a3) ? liqAbove : math.min(liqAbove, a3))
+liqAbove := na(liqAbove) ? a4 : (na(a4) ? liqAbove : math.min(liqAbove, a4))
+liqAbove := na(liqAbove) ? a5 : (na(a5) ? liqAbove : math.min(liqAbove, a5))
+liqAbove := na(liqAbove) ? a6 : (na(a6) ? liqAbove : math.min(liqAbove, a6))
+
+b1 = (not na(sl1) and sl1 < close) ? sl1 : na
+b2 = (not na(sl2) and sl2 < close) ? sl2 : na
+b3 = (not na(sl3) and sl3 < close) ? sl3 : na
+b4 = (not na(sl4) and sl4 < close) ? sl4 : na
+b5 = (not na(pdl) and pdl < close) ? pdl : na
+b6 = (not na(pwl) and pwl < close) ? pwl : na
+liqBelow = b1
+liqBelow := na(liqBelow) ? b2 : (na(b2) ? liqBelow : math.max(liqBelow, b2))
+liqBelow := na(liqBelow) ? b3 : (na(b3) ? liqBelow : math.max(liqBelow, b3))
+liqBelow := na(liqBelow) ? b4 : (na(b4) ? liqBelow : math.max(liqBelow, b4))
+liqBelow := na(liqBelow) ? b5 : (na(b5) ? liqBelow : math.max(liqBelow, b5))
+liqBelow := na(liqBelow) ? b6 : (na(b6) ? liqBelow : math.max(liqBelow, b6))
+
+// ================= Sweep + BOS (trend module) =================
+bullSweep = not na(lastSwLow)  and low  < lastSwLow  and close > lastSwLow
+bearSweep = not na(lastSwHigh) and high > lastSwHigh and close < lastSwHigh
+
+var bool pendingBullBOS = false
+var int  pendingBullBar = 0
+var bool pendingBearBOS = false
+var int  pendingBearBar = 0
+if bullSweep
+    pendingBullBOS := true
+    pendingBullBar := bar_index
+if bearSweep
+    pendingBearBOS := true
+    pendingBearBar := bar_index
+
+brokenHigh = lastSwHigh
+brokenLow  = lastSwLow
+
+bosLongSweep  = pendingBullBOS and not na(lastSwHigh) and close > lastSwHigh and (bar_index - pendingBullBar) <= bosMaxBars
+bosShortSweep = pendingBearBOS and not na(lastSwLow)  and close < lastSwLow  and (bar_index - pendingBearBar) <= bosMaxBars
+freshBreakUp   = not na(lastSwHigh) and close > lastSwHigh and close[1] <= lastSwHigh
+freshBreakDown = not na(lastSwLow)  and close < lastSwLow  and close[1] >= lastSwLow
+bosLongCont  = useContinuation and freshBreakUp   and not bosLongSweep
+bosShortCont = useContinuation and freshBreakDown and not bosShortSweep
+bosLong  = bosLongSweep  or bosLongCont
+bosShort = bosShortSweep or bosShortCont
+
+if bosLongSweep
+    pendingBullBOS := false
+if bosShortSweep
+    pendingBearBOS := false
+if pendingBullBOS and (bar_index - pendingBullBar) > bosMaxBars
+    pendingBullBOS := false
+if pendingBearBOS and (bar_index - pendingBearBar) > bosMaxBars
+    pendingBearBOS := false
+
+// ================= FVG =================
+bullFvgNow = low > high[2]
+bearFvgNow = high < low[2]
+var float bullFvgTop = na
+var float bullFvgBot = na
+var bool  bullFvgFilled = true
+var float bearFvgTop = na
+var float bearFvgBot = na
+var bool  bearFvgFilled = true
+if bullFvgNow
+    bullFvgTop := low
+    bullFvgBot := high[2]
+    bullFvgFilled := false
+if not bullFvgFilled and low <= bullFvgBot
+    bullFvgFilled := true
+if bearFvgNow
+    bearFvgTop := low[2]
+    bearFvgBot := high
+    bearFvgFilled := false
+if not bearFvgFilled and high >= bearFvgTop
+    bearFvgFilled := true
+
+// ================= Round / SMT =================
+tolRound = roundTolATR * atrH
+nearestRound = math.round(close / roundStep) * roundStep
+nearRoundNumber = math.abs(close - nearestRound) <= tolRound
+
+[dxyH, dxyL] = request.security("TVC:DXY", timeframe.period, [high, low], lookahead=barmerge.lookahead_off)
+dxySwHigh = ta.pivothigh(dxyH, pivotLen, pivotLen)
+dxySwLow  = ta.pivotlow(dxyL, pivotLen, pivotLen)
+var float dxyLastSwHigh = na
+var float dxyLastSwLow  = na
+if not na(dxySwHigh)
+    dxyLastSwHigh := dxySwHigh
+if not na(dxySwLow)
+    dxyLastSwLow := dxySwLow
+smtBullish = useSMT and not na(dxyLastSwHigh) and not na(dxyH) and dxyH < dxyLastSwHigh
+smtBearish = useSMT and not na(dxyLastSwLow)  and not na(dxyL) and dxyL > dxyLastSwLow
+
+// ================= Filters =================
+barRange = high - low
+avgRange = ta.sma(barRange, 20)
+isSpike  = barRange > volSpikeMult * avgRange
+var int spikeBarsLeft = 0
+if isSpike
+    spikeBarsLeft := volCooldownBars
+else if spikeBarsLeft > 0
+    spikeBarsLeft := spikeBarsLeft - 1
+volOk = spikeBarsLeft <= 0
+
+inFullSession = not na(time(timeframe.period, fullStart, "UTC"))
+inLondon      = not na(time(timeframe.period, kzLondon, "UTC"))
+inNewYork     = not na(time(timeframe.period, kzNewYork, "UTC"))
+sessionOk     = not useKillzones or inLondon or inNewYork
+
+var int consecLosses     = 0
+var int cooldownUntilBar = 0
+if strategy.closedtrades > strategy.closedtrades[1]
+    lastProfit = strategy.closedtrades.profit(strategy.closedtrades - 1)
+    if lastProfit < 0
+        consecLosses += 1
+    else
+        consecLosses := 0
+    if consecLosses >= lossStreakHalt
+        cooldownUntilBar := bar_index + cooldownBars
+        consecLosses := 0
+streakOk = bar_index >= cooldownUntilBar
+
+// ================= PROP GUARDS =================
+var float dayStartEq = na
+var float peakEq     = na
+newDay = timeframe.change("D")
+if na(dayStartEq) or newDay
+    dayStartEq := strategy.equity
+peakEq := na(peakEq) ? strategy.equity : math.max(peakEq, strategy.equity)
+dayPnl   = na(dayStartEq) or dayStartEq <= 0 ? 0.0 : (strategy.equity - dayStartEq) / dayStartEq
+totalDD  = na(peakEq) or peakEq <= 0 ? 0.0 : (peakEq - strategy.equity) / peakEq
+dayLossHit = useDailyLimit and dayPnl <= -dailyLossPct
+ddHit      = useMaxDD and totalDD >= maxDDPct
+guardsOk   = not dayLossHit and not ddHit
+
+// ================= TRADE-LEVEL INSTRUMENTATION =================
+var string tSetup    = ""
+var float  tStopDist = na
+var float  tRiskUsd  = na
+var int    tConf     = 0
+var float  tSizeMult = na
+var string tRegime   = ""
+var float  tAtr      = na
+var int    tHour     = 0
+var int    tDow      = 0
+var int    tSess     = 0
+
+// Emitted BEFORE the entry blocks, so the metadata still describes the trade that just closed.
+if logTrades and strategy.closedtrades > strategy.closedtrades[1]
+    ci = strategy.closedtrades - 1
+    pf = strategy.closedtrades.profit(ci)
+    ru = strategy.closedtrades.max_runup(ci)
+    ad = strategy.closedtrades.max_drawdown(ci)
+    eb = strategy.closedtrades.entry_bar_index(ci)
+    xb = strategy.closedtrades.exit_bar_index(ci)
+    okR = not na(tRiskUsd) and tRiskUsd > 0
+    lbl = "TRD|" + tSetup + "|" + tRegime + "|" + str.tostring(tHour) + "|" + str.tostring(tDow)
+       + "|" + str.tostring(tSess) + "|" + str.tostring(tConf) + "|" + str.tostring(tSizeMult, "#.##")
+       + "|" + str.tostring(okR ? pf / tRiskUsd : na, "#.###")
+       + "|" + str.tostring(okR ? ru / tRiskUsd : na, "#.###")
+       + "|" + str.tostring(okR ? ad / tRiskUsd : na, "#.###")
+       + "|" + str.tostring(xb - eb)
+    label.new(bar_index, high, text=lbl, color=color.new(color.blue, 100),
+       textcolor=color.new(color.blue, 0), size=size.tiny, style=label.style_none)
+
+// ================= TREND module ARM zones =================
+var bool  armedLong    = false
+var float armLongTop   = na
+var float armLongBot   = na
+var int   armLongBar   = 0
+var bool  armLongIsFvg = false
+var bool  armLongSwept = false
+var bool  armedShort   = false
+var float armShortTop  = na
+var float armShortBot  = na
+var int   armShortBar  = 0
+var bool  armShortIsFvg = false
+var bool  armShortSwept = false
+
+if useTrendModule and bosLong and uptrend
+    useFvg = not bullFvgFilled and not na(bullFvgBot) and bullFvgTop < close
+    armedLong  := true
+    armLongIsFvg := useFvg
+    armLongSwept := bosLongSweep
+    armLongTop := useFvg ? bullFvgTop : (na(brokenHigh) ? close : brokenHigh + breakerUpATR * atrH)
+    armLongBot := useFvg ? bullFvgBot : (na(brokenHigh) ? close : brokenHigh - breakerDnATR * atrH)
+    armLongBar := bar_index
+
+if useTrendModule and bosShort and downtrend
+    useFvgS = not bearFvgFilled and not na(bearFvgTop) and bearFvgBot > close
+    armedShort  := true
+    armShortIsFvg := useFvgS
+    armShortSwept := bosShortSweep
+    armShortTop := useFvgS ? bearFvgTop : (na(brokenLow) ? close : brokenLow + breakerUpATR * atrH)
+    armShortBot := useFvgS ? bearFvgBot : (na(brokenLow) ? close : brokenLow - breakerDnATR * atrH)
+    armShortBar := bar_index
+
+if armedLong and ((bar_index - armLongBar) > entryWaitBars or close < armLongBot)
+    armedLong := false
+if armedShort and ((bar_index - armShortBar) > entryWaitBars or close > armShortTop)
+    armedShort := false
+
+trendLongRaw  = armedLong  and low  <= armLongTop  and close >= armLongBot and uptrend
+trendShortRaw = armedShort and high >= armShortBot and close <= armShortTop and downtrend
+trendLong  = trendLongRaw  and not trendLongRaw[1]
+trendShort = trendShortRaw and not trendShortRaw[1]
+
+// ================= RANGE module =================
+// Range boundaries computed on PRIOR bars so the current sweep bar can break them
+rHigh = ta.highest(high, rangeLen)[1]
+rLow  = ta.lowest(low,  rangeLen)[1]
+rHeight = rHigh - rLow
+rMid = (rHigh + rLow) / 2
+rangeValid = not na(rHeight) and rHeight >= minRangeATR * atrH and rHeight <= maxRangeATR * atrH
+
+// Fade a sweep of the range extreme that closes back inside
+rangeLongRaw  = useRangeModule and sideways and rangeValid and low  < rLow  and close > rLow  and close < rMid
+rangeShortRaw = useRangeModule and sideways and rangeValid and high > rHigh and close < rHigh and close > rMid
+rangeLong  = rangeLongRaw  and not rangeLongRaw[1]
+rangeShort = rangeShortRaw and not rangeShortRaw[1]
+
+// ================= Gating =================
+var int lastEntryBar = -1000
+inWindow  = time >= startTime and time <= endTime
+spacingOk = bar_index - lastEntryBar >= reentryGapBars
+canEnter  = strategy.opentrades < maxConcurrent and volOk and streakOk and inWindow and spacingOk and guardsOk and sessionOk
+sessMult  = normalizeR ? 1.0 : (inFullSession ? 1.0 : 0.5)
+ptVal = na(syminfo.pointvalue) or syminfo.pointvalue <= 0 ? 1.0 : syminfo.pointvalue
+
+var int slot = 0
+
+// ---------- TREND LONG ----------
+if canEnter and trendLong
+    stopPx = armLongBot - atrH * buffMult
+    stopDist = close - stopPx
+    if stopDist >= minStopATR * atrH and stopDist <= maxStopATR * atrH
+        liqPx = na(liqAbove) ? na : liqAbove - frontRunATR * atrH
+        liqR  = na(liqPx) ? na : (liqPx - close) / stopDist
+        useLiq = useLiqTarget and not na(liqR) and liqR >= minTargetR
+        tgt = useLiq ? liqPx : close + fixedRR * stopDist
+        conf = (armLongIsFvg ? 1 : 0) + (armLongSwept ? 1 : 0) + (nearRoundNumber ? 1 : 0) + (smtBullish ? 1 : 0)
+        confMult = normalizeR ? 1.0 : (conf >= 2 ? 1.0 : lowConfMult)
+        qty = math.max(1, math.floor(strategy.equity * riskPct * sessMult * confMult / (stopDist * ptVal)))
+        tSetup := "TREND_LONG"
+        tStopDist := stopDist
+        tRiskUsd := stopDist * qty * ptVal
+        tConf := conf
+        tSizeMult := sessMult * confMult
+        tRegime := uptrend ? "UP" : downtrend ? "DOWN" : "SIDE"
+        tAtr := atrH
+        tHour := hour(time, "UTC")
+        tDow := dayofweek(time, "UTC")
+        tSess := inFullSession ? 1 : 0
+        slot := slot + 1
+        eid = "TL" + str.tostring(slot)
+        lastEntryBar := bar_index
+        armedLong := false
+        strategy.entry(eid, strategy.long, qty=qty)
+        strategy.exit("x" + eid, eid, stop=stopPx, limit=tgt)
+        alert('{"action":"open","module":"trend","side":"buy","symbol":"' + syminfo.ticker + '","qty":' + str.tostring(qty) + ',"entry":' + str.tostring(close) + ',"stop":' + str.tostring(stopPx) + ',"target":' + str.tostring(tgt) + '}', alert.freq_once_per_bar_close)
+
+// ---------- TREND SHORT ----------
+if canEnter and trendShort
+    stopPxS = armShortTop + atrH * buffMult
+    stopDistS = stopPxS - close
+    if stopDistS >= minStopATR * atrH and stopDistS <= maxStopATR * atrH
+        liqPxS = na(liqBelow) ? na : liqBelow + frontRunATR * atrH
+        liqRS  = na(liqPxS) ? na : (close - liqPxS) / stopDistS
+        useLiqS = useLiqTarget and not na(liqRS) and liqRS >= minTargetR
+        tgtS = useLiqS ? liqPxS : close - fixedRR * stopDistS
+        confS = (armShortIsFvg ? 1 : 0) + (armShortSwept ? 1 : 0) + (nearRoundNumber ? 1 : 0) + (smtBearish ? 1 : 0)
+        confMultS = normalizeR ? 1.0 : (confS >= 2 ? 1.0 : lowConfMult)
+        qtyS = math.max(1, math.floor(strategy.equity * riskPct * sessMult * confMultS / (stopDistS * ptVal)))
+        tSetup := "TREND_SHORT"
+        tStopDist := stopDistS
+        tRiskUsd := stopDistS * qtyS * ptVal
+        tConf := confS
+        tSizeMult := sessMult * confMultS
+        tRegime := uptrend ? "UP" : downtrend ? "DOWN" : "SIDE"
+        tAtr := atrH
+        tHour := hour(time, "UTC")
+        tDow := dayofweek(time, "UTC")
+        tSess := inFullSession ? 1 : 0
+        slot := slot + 1
+        sid = "TS" + str.tostring(slot)
+        lastEntryBar := bar_index
+        armedShort := false
+        strategy.entry(sid, strategy.short, qty=qtyS)
+        strategy.exit("x" + sid, sid, stop=stopPxS, limit=tgtS)
+        alert('{"action":"open","module":"trend","side":"sell","symbol":"' + syminfo.ticker + '","qty":' + str.tostring(qtyS) + ',"entry":' + str.tostring(close) + ',"stop":' + str.tostring(stopPxS) + ',"target":' + str.tostring(tgtS) + '}', alert.freq_once_per_bar_close)
+
+// ---------- RANGE LONG (fade sweep of range low) ----------
+if canEnter and rangeLong
+    stopPxR = low - atrH * rangeBuffATR
+    stopDistR = close - stopPxR
+    tgtR = close + (rHigh - close) * rangeTargetPct
+    if stopDistR >= minStopATR * atrH and stopDistR <= maxStopATR * atrH and (tgtR - close) / stopDistR >= rangeMinR
+        confR = (nearRoundNumber ? 1 : 0) + (smtBullish ? 1 : 0)
+        confMultR = normalizeR ? 1.0 : (confR >= 2 ? 1.0 : lowConfMult)
+        qtyR = math.max(1, math.floor(strategy.equity * riskPct * sessMult * confMultR / (stopDistR * ptVal)))
+        tSetup := "RANGE_LONG"
+        tStopDist := stopDistR
+        tRiskUsd := stopDistR * qtyR * ptVal
+        tConf := confR
+        tSizeMult := sessMult * confMultR
+        tRegime := uptrend ? "UP" : downtrend ? "DOWN" : "SIDE"
+        tAtr := atrH
+        tHour := hour(time, "UTC")
+        tDow := dayofweek(time, "UTC")
+        tSess := inFullSession ? 1 : 0
+        slot := slot + 1
+        rid = "RL" + str.tostring(slot)
+        lastEntryBar := bar_index
+        strategy.entry(rid, strategy.long, qty=qtyR)
+        strategy.exit("x" + rid, rid, stop=stopPxR, limit=tgtR)
+        alert('{"action":"open","module":"range","side":"buy","symbol":"' + syminfo.ticker + '","qty":' + str.tostring(qtyR) + ',"entry":' + str.tostring(close) + ',"stop":' + str.tostring(stopPxR) + ',"target":' + str.tostring(tgtR) + '}', alert.freq_once_per_bar_close)
+
+// ---------- RANGE SHORT (fade sweep of range high) ----------
+if canEnter and rangeShort
+    stopPxRS = high + atrH * rangeBuffATR
+    stopDistRS = stopPxRS - close
+    tgtRS = close - (close - rLow) * rangeTargetPct
+    if stopDistRS >= minStopATR * atrH and stopDistRS <= maxStopATR * atrH and (close - tgtRS) / stopDistRS >= rangeMinR
+        confRS = (nearRoundNumber ? 1 : 0) + (smtBearish ? 1 : 0)
+        confMultRS = normalizeR ? 1.0 : (confRS >= 2 ? 1.0 : lowConfMult)
+        qtyRS = math.max(1, math.floor(strategy.equity * riskPct * sessMult * confMultRS / (stopDistRS * ptVal)))
+        tSetup := "RANGE_SHORT"
+        tStopDist := stopDistRS
+        tRiskUsd := stopDistRS * qtyRS * ptVal
+        tConf := confRS
+        tSizeMult := sessMult * confMultRS
+        tRegime := uptrend ? "UP" : downtrend ? "DOWN" : "SIDE"
+        tAtr := atrH
+        tHour := hour(time, "UTC")
+        tDow := dayofweek(time, "UTC")
+        tSess := inFullSession ? 1 : 0
+        slot := slot + 1
+        rsid = "RS" + str.tostring(slot)
+        lastEntryBar := bar_index
+        strategy.entry(rsid, strategy.short, qty=qtyRS)
+        strategy.exit("x" + rsid, rsid, stop=stopPxRS, limit=tgtRS)
+        alert('{"action":"open","module":"range","side":"sell","symbol":"' + syminfo.ticker + '","qty":' + str.tostring(qtyRS) + ',"entry":' + str.tostring(close) + ',"stop":' + str.tostring(stopPxRS) + ',"target":' + str.tostring(tgtRS) + '}', alert.freq_once_per_bar_close)
+
+if strategy.opentrades > 0 and time > endTime
+    strategy.close_all(comment="window end")
+
+plot(emaFast, "HTF EMA50", color=color.orange)
+plot(emaSlow, "HTF EMA200", color=color.blue)
