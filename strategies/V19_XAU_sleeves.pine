@@ -1,0 +1,361 @@
+//@version=6
+// =====================================================================
+// V19 SLEEVES + BUFFER SIZING  (LucidDaily 50K evaluation engine)
+//
+// setup 1 sweep reclaim | 2 opening range breakout | 3 VWAP stretch fade
+// (2 and 3 were tested and are negative -- kept so the result is reproducible)
+//
+// BUFFER-BASED SIZING is the change that matters. Fixed risk trades pass rate
+// against bust rate roughly 1:1 on this account. Risking a fixed FRACTION of
+// the distance to the max-loss floor instead makes the position small exactly
+// when a loss would be fatal, and lets it grow only once a cushion exists.
+//
+// The buffer decays geometrically and cannot be crossed: after a full loss,
+// buffer_new = buffer x (1 - frac). Busting requires a SINGLE trade losing
+// 1/frac times its intended risk in one event -- 5x at frac 0.20. The largest
+// loss in 162 real fills is 1.24x. That is where the residual risk lives: a
+// gap or halt that blows through the stop, not a losing streak.
+//
+// 20,000-run block bootstrap, run to resolution:
+//   fixed $300   56.4% pass / 43.6% bust
+//   buffer 20%   71.9% pass /  0.0% bust / 28.1% still grinding
+//   buffer 15%   78.9% pass /  0.0% bust / 21.1% still grinding
+//
+// NOTE ON READING THE BACKTEST: an evaluation ENDS at the profit target, so
+// stopAtTarget must be on for a run to model one attempt. With it off the
+// account keeps trading for the whole window against an MLL floor that locked
+// early, buffer sizing throttles it down near that floor, and the reported
+// profit factor describes something that would never be traded.
+//
+// The 50% consistency rule is NOT enforced here -- the Python simulator does
+// that. A run that reaches the target in a handful of trades over a day or two
+// should be read as a consistency failure, not a pass.
+// =====================================================================
+strategy("V19 SLEEVES", overlay=true,
+     initial_capital=50000, currency=currency.USD,
+     default_qty_type=strategy.fixed, default_qty_value=1,
+     pyramiding=1,
+     commission_type=strategy.commission.cash_per_contract, commission_value=1.24,
+     slippage=2,
+     margin_long=5, margin_short=5,
+     max_labels_count=500)
+
+setupIn    = input.int(1,   "setup 1sweep 2orb 3vwapfade", minval=1, maxval=3, group="Setup")
+sideIn     = input.int(3,   "side 1both 2long 3short", minval=1, maxval=3, group="Setup")
+regime     = input.int(0,   "regime 0off 1withHTF 2againstHTF", minval=0, maxval=2, group="Setup")
+htfEmaLen  = input.int(50,  "HTF EMA length", group="Setup")
+htfRes     = input.string("D", "HTF resolution", group="Setup")
+
+pivL       = input.int(5,   "pivot left",  group="Sweep")
+pivR       = input.int(3,   "pivot right", group="Sweep")
+reclaimBar = input.int(6,   "max bars sweep -> reclaim", group="Sweep")
+orbMin     = input.int(60,  "opening range minutes", group="ORB")
+vwapATR    = input.float(2.0, "VWAP stretch (xATR)", group="VWAP")
+
+maxStopUSD = input.float(12.0, "MAX stop distance ($)", group="Stop")
+minStopUSD = input.float(2.0,  "min stop distance ($)", group="Stop")
+bufUSD     = input.float(1.0,  "buffer beyond structure ($)", group="Stop")
+
+tpR        = input.float(3.0,  "target (R); 0 = none", group="Exit")
+useTrail   = input.bool(false, "trail instead of fixed target", group="Exit")
+trailR     = input.float(1.0,  "trail offset (R)", group="Exit")
+flatEOD    = input.bool(true,  "flat at end of flat-window", group="Exit")
+
+sessStr    = input.session("1300-2100", "entry session (UTC)", group="Session")
+flatStr    = input.session("1300-1930", "must-be-flat-by window (UTC)", group="Session")
+
+useBufSize = input.bool(true,  "size from MLL buffer (not fixed)", group="Risk")
+bufFrac    = input.float(0.20, "risk = this fraction of buffer", group="Risk")
+riskCap    = input.float(750,  "risk cap ($)", group="Risk")
+riskUSD    = input.float(500,  "fixed risk ($) when buffer sizing off", group="Risk")
+maxCtr     = input.int(40,     "max contracts", group="Risk")
+dayStopR   = input.float(2.0,  "stop for the day after -R; 0 = off", group="Risk")
+
+mllAmt     = input.float(2000, "max loss limit ($)", group="Account")
+lockOffset = input.float(100,  "MLL locks at start + this ($)", group="Account")
+targetAmt  = input.float(3000, "profit target ($)", group="Account")
+stopAtTgt  = input.bool(true,  "stop trading once target is reached", group="Account")
+
+startTime  = input.time(timestamp("2025-10-01 00:00 +0000"), "Start (UTC)", group="Window")
+endTime    = input.time(timestamp("2026-09-03 23:59 +0000"), "End (UTC)",   group="Window")
+doExport   = input.bool(false, "export trades as labels", group="Export")
+
+inWin  = time >= startTime and time <= endTime
+sessOn = not na(time(timeframe.period, sessStr, "UTC"))
+flatOn = not na(time(timeframe.period, flatStr, "UTC"))
+ptVal  = na(syminfo.pointvalue) or syminfo.pointvalue <= 0 ? 1.0 : syminfo.pointvalue
+atr    = ta.atr(14)
+
+htfC = request.security(syminfo.tickerid, htfRes, close[1], lookahead=barmerge.lookahead_off)
+htfE = request.security(syminfo.tickerid, htfRes, ta.ema(close, htfEmaLen)[1], lookahead=barmerge.lookahead_off)
+htfUp = htfC > htfE
+
+// ---------------- LucidDaily account model ----------------
+startBal = strategy.initial_capital
+balNow   = startBal + strategy.netprofit
+var float peakBal   = 0.0
+var float mllFloor  = 0.0
+var bool  mllLocked = false
+var bool  evalDone  = false
+var int   evalBars  = 0
+if bar_index == 0
+    peakBal  := startBal
+    mllFloor := startBal - mllAmt
+if not mllLocked
+    peakBal  := math.max(peakBal, balNow)
+    mllFloor := math.max(mllFloor, peakBal - mllAmt)
+    if peakBal >= startBal + mllAmt
+        mllFloor  := startBal + lockOffset
+        mllLocked := true
+if stopAtTgt and balNow >= startBal + targetAmt
+    evalDone := true
+if not evalDone and inWin
+    evalBars += 1
+bufNow  = math.max(0.0, balNow - mllFloor)
+riskNow = useBufSize ? math.min(riskCap, bufNow * bufFrac) : riskUSD
+
+// ---------------- setup 1: sweep reclaim ----------------
+ph = ta.pivothigh(high, pivL, pivR)
+pl = ta.pivotlow(low,  pivL, pivR)
+
+var float swLo = na
+var float swHi = na
+var bool  sweptLo = false
+var bool  sweptHi = false
+var float sweepLoPx = na
+var float sweepHiPx = na
+var int   sweepLoBar = 0
+var int   sweepHiBar = 0
+
+if not na(pl)
+    swLo      := pl
+    sweptLo   := false
+    sweepLoPx := na
+if not na(ph)
+    swHi      := ph
+    sweptHi   := false
+    sweepHiPx := na
+
+if not na(swLo) and low < swLo
+    sweptLo    := true
+    sweepLoPx  := na(sweepLoPx) ? low : math.min(sweepLoPx, low)
+    sweepLoBar := bar_index
+if not na(swHi) and high > swHi
+    sweptHi    := true
+    sweepHiPx  := na(sweepHiPx) ? high : math.max(sweepHiPx, high)
+    sweepHiBar := bar_index
+
+sweepL = sweptLo and not na(swLo) and close > swLo and (bar_index - sweepLoBar) <= reclaimBar
+sweepS = sweptHi and not na(swHi) and close < swHi and (bar_index - sweepHiBar) <= reclaimBar
+
+// ---------------- setup 2: opening range breakout ----------------
+tfMin = timeframe.in_seconds() / 60.0
+var float orbHi = na
+var float orbLo = na
+var int   orbBar = 0
+var bool  orbSet = false
+var bool  orbUsed = false
+
+sessStart = sessOn and not sessOn[1]
+if sessStart
+    orbHi   := high
+    orbLo   := low
+    orbBar  := bar_index
+    orbSet  := false
+    orbUsed := false
+else if sessOn and not orbSet
+    if (bar_index - orbBar) * tfMin < orbMin
+        orbHi := math.max(orbHi, high)
+        orbLo := math.min(orbLo, low)
+    else
+        orbSet := true
+
+xOrbUp = ta.crossover(close, orbHi)
+xOrbDn = ta.crossunder(close, orbLo)
+orbL = orbSet and not orbUsed and not na(orbHi) and xOrbUp
+orbS = orbSet and not orbUsed and not na(orbLo) and xOrbDn
+
+// ---------------- setup 3: VWAP stretch fade ----------------
+vw = ta.vwap(hlc3)
+stretchUp = close > vw + vwapATR * atr
+stretchDn = close < vw - vwapATR * atr
+var bool  wasUp = false
+var bool  wasDn = false
+var float upExt = na
+var float dnExt = na
+if sessStart
+    wasUp := false
+    wasDn := false
+    upExt := na
+    dnExt := na
+if stretchUp
+    wasUp := true
+    upExt := na(upExt) ? high : math.max(upExt, high)
+if stretchDn
+    wasDn := true
+    dnExt := na(dnExt) ? low : math.min(dnExt, low)
+fadeS = wasUp and not stretchUp and close < close[1]
+fadeL = wasDn and not stretchDn and close > close[1]
+
+// ---------------- resolve ----------------
+rawL = setupIn == 1 ? sweepL : setupIn == 2 ? orbL : fadeL
+rawS = setupIn == 1 ? sweepS : setupIn == 2 ? orbS : fadeS
+
+stpL = setupIn == 1 ? sweepLoPx - bufUSD : setupIn == 2 ? orbLo - bufUSD : dnExt - bufUSD
+stpS = setupIn == 1 ? sweepHiPx + bufUSD : setupIn == 2 ? orbHi + bufUSD : upExt + bufUSD
+dL   = close - stpL
+dS   = stpS  - close
+
+okRegL = regime == 0 or (regime == 1 and htfUp) or (regime == 2 and not htfUp)
+okRegS = regime == 0 or (regime == 1 and not htfUp) or (regime == 2 and htfUp)
+
+var int   taken   = 0
+var int   rejWide = 0
+var int   rejTight= 0
+var int   rejSess = 0
+var int   rejPos  = 0
+var int   rejDay  = 0
+var int   rejReg  = 0
+var int   rejBuf  = 0
+var float sumStop = 0.0
+var float sumRisk = 0.0
+var float minBuf  = 1e9
+
+var float entryPx  = na
+var float entryStp = na
+var float entryR   = na
+
+var float dayPnL = 0.0
+var float lastEq = 0.0
+newDay = ta.change(time("D")) != 0
+if newDay
+    dayPnL := 0.0
+dayPnL += strategy.netprofit + strategy.openprofit - lastEq
+lastEq := strategy.netprofit + strategy.openprofit
+dayBlocked = dayStopR > 0 and dayPnL <= -dayStopR * riskNow
+
+sizeFor(d) =>
+    rpc = d * ptVal
+    rpc > 0 ? math.min(math.floor(riskNow / rpc), maxCtr) : 0
+
+armL(px, stp, r) =>
+    if useTrail
+        strategy.exit("xL", "L", stop=stp, trail_points=r/syminfo.mintick, trail_offset=trailR*r/syminfo.mintick)
+    else if tpR > 0
+        strategy.exit("xL", "L", stop=stp, limit=px + tpR * r)
+    else
+        strategy.exit("xL", "L", stop=stp)
+
+armS(px, stp, r) =>
+    if useTrail
+        strategy.exit("xS", "S", stop=stp, trail_points=r/syminfo.mintick, trail_offset=trailR*r/syminfo.mintick)
+    else if tpR > 0
+        strategy.exit("xS", "S", stop=stp, limit=px - tpR * r)
+    else
+        strategy.exit("xS", "S", stop=stp)
+
+canEnter = inWin and sessOn and not evalDone and (not flatEOD or flatOn)
+
+if inWin and not evalDone
+    if strategy.position_size == 0
+        minBuf := math.min(minBuf, bufNow)
+    okL = sideIn == 1 or sideIn == 2
+    okS = sideIn == 1 or sideIn == 3
+
+    if rawL and okL
+        if not okRegL
+            rejReg += 1
+        else if not canEnter
+            rejSess += 1
+        else if dayBlocked
+            rejDay += 1
+        else if strategy.position_size != 0
+            rejPos += 1
+        else if na(dL) or dL > maxStopUSD
+            rejWide += 1
+        else if dL < minStopUSD
+            rejTight += 1
+        else
+            n = sizeFor(dL)
+            if n < 1
+                rejBuf += 1
+            else
+                strategy.entry("L", strategy.long, qty=n)
+                entryPx  := close
+                entryStp := stpL
+                entryR   := dL
+                sweptLo  := false
+                orbUsed  := true
+                wasDn    := false
+                taken    += 1
+                sumStop  += dL
+                sumRisk  += riskNow
+                armL(close, stpL, dL)
+
+    if rawS and okS
+        if not okRegS
+            rejReg += 1
+        else if not canEnter
+            rejSess += 1
+        else if dayBlocked
+            rejDay += 1
+        else if strategy.position_size != 0
+            rejPos += 1
+        else if na(dS) or dS > maxStopUSD
+            rejWide += 1
+        else if dS < minStopUSD
+            rejTight += 1
+        else
+            n2 = sizeFor(dS)
+            if n2 < 1
+                rejBuf += 1
+            else
+                strategy.entry("S", strategy.short, qty=n2)
+                entryPx  := close
+                entryStp := stpS
+                entryR   := dS
+                sweptHi  := false
+                orbUsed  := true
+                wasUp    := false
+                taken    += 1
+                sumStop  += dS
+                sumRisk  += riskNow
+                armS(close, stpS, dS)
+
+if strategy.position_size > 0 and not na(entryStp)
+    armL(entryPx, entryStp, entryR)
+if strategy.position_size < 0 and not na(entryStp)
+    armS(entryPx, entryStp, entryR)
+
+if strategy.position_size != 0 and ((flatEOD and not flatOn) or time > endTime or evalDone)
+    strategy.close_all(comment="flat")
+
+var int lastN = 0
+if doExport and strategy.closedtrades > lastN
+    for i = lastN to strategy.closedtrades - 1
+        txt = "T|" + str.tostring(i) + "|" + str.tostring(strategy.closedtrades.entry_time(i)) + "|" + str.tostring(strategy.closedtrades.exit_time(i)) + "|" + str.tostring(strategy.closedtrades.profit(i), "#.##") + "|" + str.tostring(strategy.closedtrades.size(i), "#.##") + "|" + str.tostring(strategy.closedtrades.max_runup(i), "#.##") + "|" + str.tostring(strategy.closedtrades.max_drawdown(i), "#.##")
+        label.new(bar_index, high, txt, style=label.style_none, textcolor=color.new(color.white, 100), size=size.tiny)
+    lastN := strategy.closedtrades
+
+if barstate.islastconfirmedhistory or barstate.islast
+    t = table.new(position.top_right, 2, 10, border_width=1)
+    table.cell(t, 0, 0, "TARGET REACHED", bgcolor=evalDone ? color.green : color.gray, text_color=color.white)
+    table.cell(t, 1, 0, evalDone ? "YES" : "no", bgcolor=evalDone ? color.green : color.gray, text_color=color.white)
+    table.cell(t, 0, 1, "bars to target")
+    table.cell(t, 1, 1, str.tostring(evalBars))
+    table.cell(t, 0, 2, "trades taken")
+    table.cell(t, 1, 2, str.tostring(taken))
+    table.cell(t, 0, 3, "mean stop USD")
+    table.cell(t, 1, 3, str.tostring(taken > 0 ? sumStop / taken : 0, "#.##"))
+    table.cell(t, 0, 4, "mean risk USD")
+    table.cell(t, 1, 4, str.tostring(taken > 0 ? sumRisk / taken : 0, "#.##"))
+    table.cell(t, 0, 5, "MLL floor")
+    table.cell(t, 1, 5, str.tostring(mllFloor, "#"))
+    table.cell(t, 0, 6, "MLL locked")
+    table.cell(t, 1, 6, mllLocked ? "yes" : "no")
+    table.cell(t, 0, 7, "min buffer seen")
+    table.cell(t, 1, 7, str.tostring(minBuf > 1e8 ? 0 : minBuf, "#"))
+    table.cell(t, 0, 8, "rej buffer too small")
+    table.cell(t, 1, 8, str.tostring(rejBuf))
+    table.cell(t, 0, 9, "rej stop wide")
+    table.cell(t, 1, 9, str.tostring(rejWide))
