@@ -118,3 +118,71 @@ It is still not a system I would tell someone to run an evaluation on. At the
 risk level where it busts 0% of the time it is too slow; at the risk level where
 it passes fastest it busts half the time. Reporting it as a solution would
 require quoting the 37.7% pass rate without the 52.2% bust rate beside it.
+
+---
+
+# V18 — the synthesis test, and why the two properties cannot be combined
+
+The obvious move was to put V16's strong entry (Donchian breakout, PF 2.10 out of
+sample) on V17's tight structural stop. V18 makes entry and stop independent
+switches so that exact combination can be built. It first reproduces V17 bit for
+bit as a control (net $15,786, PF 1.327, 162 trades, DD $4,971 — identical), so
+the rig is verified before anything is concluded from it.
+
+**The combination is structurally impossible, and it fails twice over.**
+
+Set to breakout entries with a structural stop and a $12 cap, it takes **zero
+trades**: all 223 in-session signals are rejected as "stop too wide". Lifting the
+cap to measure the distribution shows why — the mean structural stop for a
+breakout entry is **$33**, against $6.95 for a sweep reclaim. 4.7× wider.
+
+That is not a tuning problem, it is the geometry of the two setups:
+
+- A **breakout** enters *at* an extreme. The structure that invalidates it is the
+  base of the move, which is by construction far behind. This is the same fact
+  that made V16's ATR stop $87.
+- A **sweep reclaim** enters *next to* the extreme that invalidates it. The stop
+  is a few dollars away because that is where the idea is wrong.
+
+Tight invalidation and breakout entry are mutually exclusive. And even after
+lifting the cap so the breakout trades could be taken at $33 stops, the edge is
+not there on 15m anyway: **PF 0.831, −$2,311 over 108 trades**. V16's breakout
+edge lives on 1H and does not survive being moved down to 15m.
+
+## Daily loss guard
+
+The one lever that did help, and the only one that attacks drawdown directly
+rather than trying to add profit:
+
+| stop-for-the-day | PF | net | max DD | return/DD |
+|---|---|---|---|---|
+| off | 1.327 | $15,786 | $4,971 | 3.18 |
+| after −2R | **1.341** | **$16,271** | **$4,759** | **3.42** |
+| after −1R | 1.372 | $15,764 | $5,441 | 2.90 |
+
+−2R is the best setting: it improves profit factor, net profit and drawdown
+together. −1R raises profit factor but cuts so many trades that drawdown gets
+worse — fewer trades means less averaging, not less risk.
+
+A 3.18 → 3.42 improvement is real but small. It does not change the conclusion;
+the evaluation simulation above was run on the guard-off sequence and an 8% shift
+in the ratio does not move those pass rates meaningfully.
+
+## Levers tested against the frequency problem, all closed
+
+The binding constraint is that profit scales with elapsed time and drawdown does
+not, so passing inside 60 days needs roughly double the return-to-drawdown ratio.
+Every route to that has now been tested:
+
+| lever | result |
+|---|---|
+| 5m timeframe | PF 0.929, −$4,473; $4,199 of commission eats it |
+| extend to London session | 342 trades but PF 1.02, DD $15,979 |
+| breakout entry on tight stop | structurally impossible; and PF 0.831 anyway |
+| break-even stop at 1.5R | PF 1.327→1.300, DD worse |
+| daily loss guard at −2R | +8% on the ratio |
+| long side | PF 0.709 |
+
+The edge is specifically: gold, 15m, short side, NY session, sweep-and-reclaim,
+structural stop under $12, 3R target, flat by 19:30. It does not survive being
+moved off any one of those.
