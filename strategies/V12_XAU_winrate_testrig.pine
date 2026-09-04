@@ -1,6 +1,6 @@
 //@version=6
 // =====================================================================
-// V11.1 XAU - Day-Trader Profile
+// V12 XAU - Win-rate test rig
 //
 // Measured design decisions (11 months XAUUSD 15m, $50k, costs modelled
 // at $0.20/oz per side):
@@ -32,7 +32,7 @@
 //     so a losing streak stops trading before it breaches an evaluation
 //     rule rather than after.
 // =====================================================================
-strategy("V11.1 XAU - Day Trader", overlay=true,
+strategy("V12 XAU - Win Rate Test", overlay=true,
      initial_capital=50000, currency=currency.USD,
      default_qty_type=strategy.fixed, default_qty_value=1,
      pyramiding=4,
@@ -63,7 +63,8 @@ fullStart       = input.session("0700-1600", "Full-size session (UTC)", group="S
 riskPct         = input.float(0.75, "Risk % per trade", group="Risk") / 100
 useLiqTarget    = input.bool(false, "TREND: target liquidity (else fixed R)", group="Risk")
 minTargetR      = input.float(1.5,  "TREND: min R for a liquidity target", group="Risk")
-fixedRR         = input.float(1.5,  "TREND: fixed target (xR)", group="Risk")
+fixedRR         = input.float(1.5,  "Fixed target (xR)", group="Risk")
+minConf         = input.int(0,      "Min confluence to enter (0 = take all)", group="Risk")
 frontRunATR     = input.float(0.10, "Front-run target by (xATR)", group="Risk")
 maxStopATR      = input.float(1.2,  "Max stop distance (xATR)", group="Risk")
 minStopATR      = input.float(0.15, "Min stop distance (xATR)", group="Risk")
@@ -90,6 +91,7 @@ maxRangeATR     = input.float(6.0, "Max range height (xATR)", group="Range")
 rangeBuffATR    = input.float(0.20, "Range stop buffer (xATR)", group="Range")
 rangeMinR       = input.float(2.5, "Min R for range trade", group="Range")
 rangeTargetPct  = input.float(0.80, "Target as % of range travel", group="Range")
+rangeFixedR     = input.bool(false, "RANGE: use fixed R target instead", group="Range")
 
 // ================= Confluence =================
 roundStep       = input.float(50.0, "Round-number step", group="Confluence")
