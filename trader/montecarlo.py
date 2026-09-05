@@ -111,3 +111,29 @@ def sweep():
                   f"{wi[5]:>6.1%} {wi[7]:>6.1%} {wi[14]:>6.1%}")
 
 sweep()
+
+def final():
+    a = LUCIDFLEX["50K"]
+    print("\n" + "="*78)
+    print("PASS PROBABILITY AT THE CROSS-VALIDATED MEASURED EDGE")
+    print("3 setups surviving both markets: +0.0884R over 367 trades")
+    print("(modelled as 43.5% win at 1.5:1 -> E = +0.088R)\n")
+    print(f"{'risk':>6} {'tpd':>4} {'pass':>7} {'bust':>6} {'med d':>6} "
+          f"{'<=2d':>7} {'<=3d':>7} {'<=5d':>7} {'<=7d':>7} {'<=14d':>7}")
+    for risk in (250, 300, 400, 500):
+        for tpd in (4, 6):
+            r = run(a, 0.435, 1.5, tpd, risk, daily_target_days=3)
+            wi = r["within"]
+            print(f"{risk:>6} {tpd:>4} {r['pas']:>6.1%} {r['bust']:>5.1%} "
+                  f"{str(r['med']):>6} {wi[2]:>6.1%} {wi[3]:>6.1%} {wi[5]:>6.1%} "
+                  f"{wi[7]:>6.1%} {wi[14]:>6.1%}")
+
+    print("\nfor comparison, the same table at the edge a 7-day pass needs (+0.179R):")
+    for risk in (300, 400):
+        r = run(a, 0.4716, 1.5, 6, risk, daily_target_days=3)
+        wi = r["within"]
+        print(f"{risk:>6} {6:>4} {r['pas']:>6.1%} {r['bust']:>5.1%} "
+              f"{str(r['med']):>6} {wi[2]:>6.1%} {wi[3]:>6.1%} {wi[5]:>6.1%} "
+              f"{wi[7]:>6.1%} {wi[14]:>6.1%}")
+
+final()
