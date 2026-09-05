@@ -1,0 +1,37 @@
+{
+  "_note": "TradingView alert history for OANDA:XAUUSD, pulled via alert_list. Ex-ante, outcome-independent records of human level selection. Times UTC.",
+  "_authorship": "Trading research in this repo begins 2026-09-03T23:43Z. The 2026-08-31T22:11-22:21 alerts predate any assistant trading session and carry hand-written directional text, so they are the user's.",
+  "annotated": [
+    {"id": 5504761867, "created": "2026-08-31T22:11:03Z", "fired": "2026-09-01T00:21:02Z",
+     "trigger": {"type": "greater", "value": 4460},
+     "message": "XAUUSD entering order block zone 4460-4470 - watch for short confirmation",
+     "zone": [4460, 4470], "direction": "short", "family": "bias-aligned continuation (supply above, HTF bias down)"},
+    {"id": 5504798556, "created": "2026-08-31T22:20:03Z", "fired": "2026-08-31T23:13:21Z",
+     "trigger": {"type": "cross", "value": 4444},
+     "message": "XAUUSD tapping BUY ZONE 4441-4444",
+     "zone": [4441, 4444], "direction": "long", "family": "sweep fade (zone sits below the Aug 28 low of 4445.46)"},
+    {"id": 5504805216, "created": "2026-08-31T22:20:56Z", "fired": "2026-08-31T22:21:00Z",
+     "trigger": {"type": "cross", "value": 4449.548},
+     "message": "XAUUSD Crossing 4,449.548",
+     "zone": null, "direction": null, "family": "marker level between the two zones"}
+  ],
+  "unannotated_default_message": [
+    {"created": "2026-08-26T00:49:04Z", "fired": "2026-08-26T01:00:02Z", "level": 4632.467},
+    {"created": "2026-06-24T11:33:41Z", "fired": "2026-06-24T11:52:44Z", "level": 4055.664},
+    {"created": "2026-06-24T09:29:28Z", "fired": "2026-06-26T13:57:25Z", "level": 4073.895},
+    {"created": "2026-06-24T09:25:49Z", "fired": "2026-06-24T10:17:23Z", "level": 4056.251},
+    {"created": "2026-04-17T04:51:28Z", "fired": "2026-04-17T06:12:50Z", "level": 4787.059},
+    {"created": "2026-04-13T08:31:42Z", "fired": "2026-04-13T09:10:26Z", "level": 4717.258},
+    {"created": "2026-04-01T12:48:26Z", "fired": "2026-04-01T17:06:07Z", "level": 4793.151},
+    {"created": "2026-04-01T12:48:06Z", "fired": "2026-04-02T01:25:37Z", "level": 4700.518},
+    {"created": "2026-03-31T00:26:19Z", "fired": "2026-03-31T00:36:00Z", "level": 4519.625},
+    {"created": "2026-03-29T23:14:41Z", "fired": "2026-03-30T00:12:55Z", "level": 4425.062},
+    {"created": "2026-03-11T15:47:41Z", "fired": "2026-03-11T16:07:29Z", "level": 5164.010},
+    {"created": "2026-03-11T15:36:53Z", "fired": "2026-03-11T15:46:33Z", "level": 5166.095},
+    {"created": "2026-03-11T15:34:21Z", "fired": "2026-03-11T17:36:57Z", "level": 5160.383},
+    {"created": "2026-03-11T15:34:10Z", "fired": "2026-03-11T16:40:02Z", "level": 5176.095},
+    {"created": "2026-03-10T12:56:56Z", "fired": "2026-03-10T12:59:08Z", "level": 5186.491},
+    {"created": "2026-03-10T12:24:11Z", "fired": "2026-03-10T12:25:22Z", "level": 5179.478},
+    {"created": "2026-03-09T03:02:30Z", "fired": "2026-03-09T11:20:28Z", "level": 5080.174}
+  ]
+}
