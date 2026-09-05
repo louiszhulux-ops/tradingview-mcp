@@ -92,3 +92,32 @@ The fade is the best-supported signal this project has produced and it does not
 survive execution on the instruments the evaluation allows. I am not going to
 tune it further: the failure is not in the parameters, it is that the drag is
 larger than the edge on every tradeable contract tested.
+
+## Addendum — the wider-stop hypothesis, tested end to end
+
+The decomposition above predicts that all three drags shrink as a fraction of R
+when the stop widens, so a wider stop should be the way out. Gold's own numbers
+trended that way on paper: 5m/1.5×ATR nets ≈ −0.040R, 5m/3×ATR ≈ −0.008R.
+
+Tested directly on COMEX_MINI:MGC1! with **real costs** ($0.52/order commission,
+1 tick slippage) and real next-bar-open fills:
+
+| stop | trades | net | PF | max DD | outcome |
+|---|---|---|---|---|---|
+| 1.5×ATR | 267 | −$761 | 0.946 | $2,118 | — |
+| 2.0×ATR | 160 | −$702 | 0.934 | $2,338 | — |
+| 2.5×ATR | 71 | −$1,838 | 0.705 | $2,268 | — |
+| **3.0×ATR** | **67** | **+$3,989** | **1.706** | **$1,935** | **PASS day 17** |
+| 3.5×ATR | 10 | −$1,872 | 0.123 | $2,014 | — |
+
+The one passing configuration is bracketed by −$1,838 and −$1,872. That is an
+isolated spike on 67 trades, not a robust region, and its max drawdown of $1,935
+came within $65 of busting a $2,000 limit on the path that succeeded.
+
+Note also how the trade count collapses — 267 → 10 — as the stop widens. The
+daily loss stop is a multiple of `riskNow`, so wider stops end the trading day
+after one or two losses. Fewer trades means more variance, which is precisely
+what manufactures a spike like the 3.0 cell.
+
+**The wider-stop route is rejected.** Four of five stop widths lose money, and
+taking the fifth would be fitting a parameter to one path.
