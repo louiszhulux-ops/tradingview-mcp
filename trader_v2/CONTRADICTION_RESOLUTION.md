@@ -139,6 +139,32 @@ against the family table as if they were the same measurement.
 
 ---
 
+> ## RETRACTION — added after the fold-C test
+>
+> **The statistical half of the evidence below did not survive out-of-sample and
+> is retracted.** `FOLD_C_RESULTS.md` records the test in full. In short:
+>
+> - The +0.334R / 4-of-4 L1 result was measured on MGC and MNQ only — the two
+>   instruments this project was developed on. On ten instrument × direction
+>   cells across four complexes it falls to +0.132R, and the honest kept-vs-
+>   discarded test separates in 6/10 cells with a 90% CI containing zero.
+> - On the sealed test period (2026-08-09 → 08-31) the frozen model returned
+>   **−0.074R**, failed every pre-registered gate criterion, and the bias
+>   filter's kept-vs-discarded spread **inverted** to −0.207R.
+> - §4 below ("adding HTF bias alignment improves the identical event stream
+>   4/4") is therefore **withdrawn as evidence of edge**, as is the §4 comparison
+>   claiming L1 beats F6.
+> - A further defect: room ≥ 10R was silently on in every V44 rung, so "sweep
+>   only" was never sweep-only. With room switchable, room is worth 3–4× what
+>   bias is worth (`PHASE4_RESULTS.md` §2).
+>
+> **Conclusion A still stands, on structural grounds, not statistical ones.**
+> The confusion matrix in §3, the fact that F0's limit at the swept level makes
+> every fill a fade by construction, F0's mixed arm composition (§5) and the
+> F0/F6 disjointness (§6) are all descriptive facts about the engine and the
+> event stream. None of them depended on the bias edge being real. What is gone
+> is the claim that conditioning on bias *recovers* an edge — it does not.
+
 ## 7. Conclusion: **A — representation problem**
 
 The human's continuation process is real, is the majority of their stated
