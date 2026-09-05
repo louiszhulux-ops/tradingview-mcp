@@ -150,3 +150,53 @@ If the selected bias fails the fold-C gate, the finding is reported as: *the
 ex-ante bias effect seen in-sample did not survive out-of-sample*, and the L1
 result is retracted in the same document that reported it. No re-specification,
 no second test window, no "close enough".
+
+---
+
+## 7. Amendment 1 — recorded before fold C was run
+
+Two changes, both made after seeing **fold A+B only**. Fold C was not opened.
+
+### 7.1 Fold A extended backwards
+
+First run showed folds A+B give only **56 fills** on the largest cell
+(MGC long, control). The window actually loaded on a 5m chart is longer than the
+71.5 "288-bar days" arithmetic suggested — it reaches back to roughly mid-May —
+and the original fold A start of 2026-06-22 was discarding usable development
+data for no reason.
+
+**Fold A is redefined as: all available data before 2026-07-16.** Folds B and C
+are unchanged, and fold C is still sealed. This only enlarges the development
+sample; it cannot leak the test period.
+
+### 7.2 The gate is restated, with its power stated honestly
+
+Fold C is ~22 calendar days ≈ 16 trading days, giving roughly **26 fills per
+instrument × direction cell** and ~260 pooled across ten cells. That is a
+low-powered test and pretending otherwise would be dishonest, so the numbers are
+put on the record here, before the test is run:
+
+| | P(one cell > 0) | P(≥7 of 10 cells > 0) |
+|---|---|---|
+| true E[R] = +0.30, n = 26 | 0.722 | 0.707 |
+| true E[R] = +0.20, n = 26 | 0.653 | 0.521 |
+| **null, E[R] = 0** | 0.500 | **0.172** |
+
+A ≥7/10 sign count alone would fire on noise 17% of the time. So the gate adds a
+pooled t requirement:
+
+**Fold C passes only if all four hold:**
+
+1. pooled E[R] > 0;
+2. **pooled one-sided t ≥ +1.5**;
+3. ≥ 7 of 10 instrument × direction cells positive;
+4. ≥ 6 of 8 complex × direction cells positive.
+
+Approximate joint characteristics at the development effect size: **power ≈ 55%,
+false-positive rate ≈ 6%.** Meaning: **a failure at fold C will be genuinely
+ambiguous** — roughly a coin flip between "no edge" and "real edge, too small a
+sample". That is stated now so it cannot be spun later, in either direction.
+Pooled E[R] will be reported with a 90% confidence interval, not as a bare
+pass/fail.
+
+No further amendments will be made once fold C is opened.
