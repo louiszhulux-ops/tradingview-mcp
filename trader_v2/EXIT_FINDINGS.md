@@ -119,3 +119,54 @@ Three things, all measurable, in order of size:
   which is more reassuring than a lone winner would be.
 - 46.2% within 7 days comes with 32.2% bust. That is the frontier, not a free
   lunch, and it is a real improvement rather than a solved problem.
+
+---
+
+# CORRECTION — the direction check
+
+Before reporting the H12 result I tested whether its advantage survived when the
+direction was **not** chosen from the sample. It does not.
+
+| rule | MGC long | MGC short | MNQ long | MNQ short | pooled | signs |
+|---|---|---|---|---|---|---|
+| H1 fixed 1R | −0.295 | −0.131 | −0.166 | −0.312 | −0.232 | **0/4** |
+| H2 fixed 2R | −0.148 | +0.100 | +0.048 | −0.154 | −0.047 | 2/4 |
+| H3 fixed 3R | +0.093 | +0.220 | +0.086 | −0.005 | +0.092 | 3/4 |
+| **H4 fixed 5R** | **+0.223** | **+0.340** | **+0.161** | **+0.035** | **+0.179** | **4/4** |
+| H8 REVERSAL | −0.313 | +0.417 | +0.373 | −0.254 | +0.032 | 2/4 |
+| H12 half + ride | +0.007 | +0.319 | +0.439 | −0.447 | +0.027 | 3/4 |
+
+H8 and H12 **flip sign with direction**. Their headline numbers (+0.42, +0.44)
+required knowing the favoured direction in advance — gold short, nasdaq long —
+which I had taken from the sample itself. Pooled without that call they are
+worth +0.032R and +0.027R, i.e. nothing.
+
+**The robust finding is target width.** Fixed 5R is positive in all four cells,
+fixed 1R is negative in all four, and the ordering 1R < 2R < 3R < 5R is
+monotone. That result needs no direction call and no market call.
+
+## Honest headline
+
+Direction-agnostic, both markets, both directions, room ≥ 10R, exit at 5R:
+**E = +0.179R over n = 783, t = +1.95, ~10.9 opportunities/day.**
+
+| risk/trade | buffer | pass | bust | median | ≤3d | ≤5d | **≤7d** |
+|---|---|---|---|---|---|---|---|
+| $60 | 33.3R | 79.0% | 21.0% | 33d | 0% | 0% | 0% |
+| $100 | 20.0R | 64.0% | 36.0% | 16d | 0% | 0% | 1.6% |
+| $150 | 13.3R | 57.2% | 42.8% | 9d | 0% | 5.5% | 20.2% |
+| $200 | 10.0R | 50.4% | 49.6% | 6d | 1.0% | 24.9% | 37.6% |
+| $300 | 6.7R | 54.2% | 45.8% | **3d** | 28.6% | 45.4% | **52.2%** |
+| $400 | 5.0R | 54.1% | 45.9% | **3d** | 35.3% | 47.8% | **52.9%** |
+
+**52.9% probability of passing within 7 days, median 3 days**, with no direction
+call — against ~0% within 7 days for V38. Bust risk is 46% at that sizing.
+
+## The single highest-value open question
+
+Direction. If the favoured direction per instrument could be called in advance,
+H12 rises from +0.027R to roughly +0.38R — more than double the current edge,
+and it would put 2-day passes in range. Everything else (entry, filter, target
+width) is now measured and direction-free.
+
+That is a well-posed research question and it is the next bottleneck.
