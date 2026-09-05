@@ -35,6 +35,8 @@ tgtUSD   = input.float(3000,  "profit target ($)", group="Prop")
 lockOff  = input.float(100,   "lock offset ($)", group="Prop")
 dayTgtN  = input.int(8,       "spread target over N days", group="Prop")
 dayStopR = input.float(8.0,   "daily stop (xRisk)", group="Prop")
+research = input.bool(false,  "RESEARCH mode: no pass/bust gate, qty=1", group="Research")
+maxHold  = input.int(0,       "max bars in trade (0=off)", group="Research")
 
 atr = ta.atr(14)
 eF  = ta.ema(close, emaFL)
@@ -133,7 +135,7 @@ if strategy.opentrades > 0
         else if eid == "F3"
             array.set(slotOpen, 3, true)
 
-tradeOK = not passed and not busted and dayPnL < dayTgt and dayPnL > -dayStopR * math.max(riskNow, 1.0) and buffer > 0
+tradeOK = research ? true : (not passed and not busted and dayPnL < dayTgt and dayPnL > -dayStopR * math.max(riskNow, 1.0) and buffer > 0)
 
 if fire and tradeOK and d > 0 and not na(atr)
     int free = -1
@@ -141,7 +143,7 @@ if fire and tradeOK and d > 0 and not na(atr)
         if free < 0 and not array.get(slotOpen, s)
             free := s
     if free >= 0
-        n = sizeFor(d)
+        n = research ? 1 : sizeFor(d)
         if n > 0
             sp = close + d
             tp = close - tgtR * d
@@ -167,7 +169,13 @@ plot(ptVal,           "dbg_ptVal",   display=display.data_window)
 plot(sizeFor(d),      "dbg_n",       display=display.data_window)
 plot(strategy.closedtrades, "dbg_closed", display=display.data_window)
 
-if (passed or busted) and strategy.position_size != 0
+// time stop: close anything held longer than maxHold bars
+if maxHold > 0 and strategy.opentrades > 0
+    for i = 0 to strategy.opentrades - 1
+        if bar_index - strategy.opentrades.entry_bar_index(i) >= maxHold
+            strategy.close(strategy.opentrades.entry_id(i), comment="time")
+
+if not research and (passed or busted) and strategy.position_size != 0
     strategy.close_all(comment="eval over")
 
 var table tb = table.new(position.top_right, 2, 12, border_width=1)
