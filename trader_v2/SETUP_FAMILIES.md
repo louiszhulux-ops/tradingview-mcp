@@ -91,17 +91,24 @@ is faster.
 
 - F6 is the best of eight families, so winner's curse applies. t = +1.94 is
   marginal and one of its four cells is flat (MGC long, −0.002).
-- **F0 and F6 may be the same effect.** Both are "fade an extreme": F0 fades a
-  swept level, F6 fades a 20-bar range extreme in low ADX. Their similar
-  frequency and MFE/MAE profiles suggest overlap that I have not measured.
+- ~~**F0 and F6 may be the same effect.**~~ **Measured — they are not.** V45
+  finds Jaccard 0.070: 11.9% of sweep arms are also range-regime arms, 14.7%
+  the other way, and each survives with the other removed (F0\F6 +0.124R 4/4,
+  F6\F0 +0.206R 4/4). See `CONTRADICTION_RESOLUTION.md` §6.
 - Everything here is one 72-day window on two instruments. No walk-forward on
   the family comparison yet.
 
 ## What this changes
 
-The room filter and the retest entry survive as engine components. The setup
-question is now answered: **fade-at-extreme families work, continuation
-families do not**, on this data. That is consistent with F0's sweep result and
-inconsistent with the trend-continuation framing in the original notes — worth
-raising, because the human's described process is continuation-flavoured while
-the measurements keep selecting mean-reversion.
+The room filter and the retest entry survive as engine components.
+
+> **SUPERSEDED — read `CONTRADICTION_RESOLUTION.md` before using the paragraph
+> below.** This section originally concluded *"fade-at-extreme families work,
+> continuation families do not, on this data."* That conclusion was wrong. It
+> was a statement about **my encodings**, not about the market. Every
+> continuation family here (F1, F2, F3, F5, F7) defines its event first and
+> never conditions on direction; conditioning the identical F0 sweep stream on
+> HTF bias alignment — the human's own first filter — improves it in 4/4 cells
+> (+0.153R mean) and produces +0.334R, λ 0.097, t +2.36, ahead of F6. The
+> contradiction with the human's continuation-flavoured process was a
+> representation failure on my side.
