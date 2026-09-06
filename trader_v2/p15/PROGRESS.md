@@ -93,3 +93,25 @@ See p15/PHASE15_HARD_STOP.md. Nothing repaired, nothing injected.
 - Report: p15/EXPERIMENT_E1_fvg_association.md
 - Clustering recorded, NOT interpreted; joint C1-G1 analysis after G1.
 - Next: F1 (stop construction), then G1. Remaining budget: 16 pooled runs.
+
+## Experiment F1 -- stop construction (COMPLETE, 8/8)
+- Ran p15/exec_arms/V53_EXEC_P15_F1_stop_raw_extreme.pine (sha256 4b305b21...);
+  pineVersion 140.0 -> 141.0. C1/D1/E1 residue all 0.
+- INVARIANT CORRECTED BEFORE THE RUN: fills cannot be part of it. The stop is the
+  R-band denominator (r = |E - stp|, ratio = r/ATR, fill only if 0.05 <= ratio <= 3.00),
+  so a fills change is a mechanical consequence, not an upstream leak.
+  Enforced invariant: sweeps -> CHOCH -> retest -> BOS+disp -> FVG identical.
+- RESULT: all five bit-identical to baseline on both LTFs AND in every individual cell
+  (FVG per cell 10/18/22/26/13/13/6/18 = baseline exactly). No upstream leak.
+- Conservation identity FVG = fills + rbandRej + fvgExp reconciles in all 8 cells.
+  In the four 1m cells FVG expiry is unchanged and rbandRej moves exactly opposite fills.
+- fills 41->42 (1m), 17->20 (3m); deltas run in BOTH directions per cell, so the R-band
+  binds at both edges. ASSERTS 0, dropped 0 everywhere.
+- Outcome divergence via three mechanisms: timeout->stop conversion (1m TO 4->2;
+  MNQ L 1m 2 timeouts -> 0), rescaled R denominator, and a mechanically larger $3 drag
+  per unit R (losses further below -1R, e.g. -1.137R -> -1.250R).
+- R: 1m -13.389 -> -9.003; 3m +6.482 -> +3.356. Both drawdowns rise.
+- First arm to move 3m fold B (+9.944 -> +9.938) -- via the R denominator, not trade selection.
+- Report: p15/EXPERIMENT_F1_stop_construction.md
+- Clustering recorded, NOT interpreted. Changed win rates are NOT evidence either stop is better.
+- Next: G1 (CHOCH candidate selection), the last arm. Remaining budget: 8 pooled runs.
