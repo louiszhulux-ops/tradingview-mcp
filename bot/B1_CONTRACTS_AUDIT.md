@@ -74,7 +74,7 @@ Five, all in `bot/contracts/UNRESOLVED.md`, all marked rather than guessed:
 
 | id | what | severity |
 |---|---|---|
-| **U1** | PDH/PDL roll on `ta.change(time("D"))` — the **exchange session day**, not UTC midnight, while the Asia window is explicitly UTC. B2 needs the CME session calendar. | **blocking** |
+| **U1** | PDH/PDL roll on `ta.change(time("D"))` — the **exchange session day**, not UTC midnight, while the Asia window is explicitly UTC. | **RESOLVED** — `bot/U1_CME_SESSION_CALENDAR.md`, `bot/calendar/` |
 | **U2** | The LTF timestamp fallback: when `aT` is shorter than the OHLC arrays, V53 substitutes the 5m bar time. Whether this ever fired is unknowable from the records. | needs a decision |
 | **U3** | 3m sub-bars do not tile a 5m parent. The *aggregate* is settled (34,269/20,567 = 1.6662 ≈ 5/3, exactly as tiling predicts); the *per-parent* alignment is not. | structural |
 | **U4** | `syminfo.pointvalue` is environment data, not a frozen constant. A2 derived MGC 10 / MNQ 2, but the fallback to `1.0` must not reach the bot. | correctness |

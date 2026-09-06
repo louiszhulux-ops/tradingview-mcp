@@ -11,7 +11,7 @@ open and B2 must treat it as a known risk to Gate 1, not paper over it.
 
 ---
 
-## U1 — The day boundary for PDH/PDL is the exchange session, not UTC · **BLOCKING**
+## U1 — The day boundary for PDH/PDL is the exchange session, not UTC · **RESOLVED**
 
 ```pine
 newD = ta.change(time("D")) != 0     // exchange session day
@@ -28,12 +28,30 @@ open with a daily maintenance break.
 so `PD` sweeps fire at different bars. This is not a rounding difference: it
 shifts a whole sweep source.
 
-**What B2 needs.** The CME session calendar for `MGC1!` and `MNQ1!`, including
-holidays and the maintenance break, over 2026-05-24 → 2026-08-30.
+**Resolved.** See **`bot/U1_CME_SESSION_CALENDAR.md`** and
+`bot/calendar/cme.py`.
 
-**Status.** Not derivable from anything committed. The run files record sweep
-kinds but not the day boundary that produced them. `SweepEngineState` carries
-the fields; the roll rule is B2's to establish and must be stated in its report.
+> A CME Globex trade date begins at **17:00 America/Chicago** on the preceding
+> calendar day. `ta.change(time("D")) != 0` fires on the first bar at or after
+> 17:00 CT. Both MGC1! (COMEX) and MNQ1! (CME) share the rule — one calendar
+> definition, no product argument.
+
+Established from three independent links: TradingView documents `time("D")` as
+the daily bar's open; CME documents a new trade date beginning at 5:00 p.m. CT
+for futures, with Friday-evening-through-Sunday trading taking the following
+business day; and the committed Phase 13F/14 records agree — fold C opens
+Sunday 17:00 CDT, fold B ends Friday 15:55 CDT, and none of the 290 recorded
+event timestamps falls in the 16:00–17:00 CT break or on a Saturday.
+
+**Holidays do not participate in the roll.** A holiday removes bars; it does not
+move the boundary. Every bar that exists is labelled correctly by the 17:00 CT
+rule alone, so `trade_date()` consults no holiday set. The sets shipped in
+`bot/calendar/cme.py` are advisory, for gap detection only.
+
+Two residual items, neither blocking: the CST half of the DST rule is
+unverified in-repo (all research data is CDT, and the first CST bars are inside
+the held-out window), and the early-close *times* were not obtainable because
+`cmegroup.com` is blocked by this environment's egress proxy.
 
 ---
 
