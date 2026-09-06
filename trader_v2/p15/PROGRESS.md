@@ -63,3 +63,16 @@ See p15/PHASE15_HARD_STOP.md. Nothing repaired, nothing injected.
   The executed baseline is preserved on disk and must be re-injected and recompiled
   after G1 to restore the cloud script.
 - Next: D1 (BOS reference). Remaining budget after C1: 32 pooled runs.
+
+## Experiment D1 -- BOS reference eligibility (COMPLETE, 8/8)
+- Ran p15/exec_arms/V53_EXEC_P15_D1_bos_reference.pine (sha256 85861d7e...);
+  pineVersion 138.0 -> 139.0. Full file replaced C1 wholesale (aA absent, verified).
+- Integrity: sweeps, CHOCH AND CHOCH retests all bit-identical to baseline in every
+  cell; divergence begins at BOS, as specified. A21/A23-A27/A32 = 0 everywhere;
+  dropped = 0. A22 EXPECTED non-zero by construction: 14 on 1m, 56 on 3m, total 70.
+- 1m: change fully absorbed -- BOS/FVG/fills/R bit-identical to baseline.
+- 3m: BOS+disp +14.9%, FVG +10.0%, fills +11.8%; the 2 extra fills are both losses
+  in one MNQ L 3m sweep cluster. All change again confined to fold A.
+- Report: p15/EXPERIMENT_D1_bos_reference.md
+- Clustering recorded but NOT interpreted; joint C1-G1 analysis deferred until after G1.
+- Next: E1 (FVG association). Remaining budget after D1: 24 pooled runs.
