@@ -40,3 +40,13 @@ p15/executed/V53_EXECUTED_BUILD.pine (sha256 2dafbafd...). Strategy logic is
 identical; the differences are three write-only diagnostic counters (K33/34/35)
 and the section 7 output layer. A/B results stand; C1-G1 not run.
 See p15/PHASE15_HARD_STOP.md. Nothing repaired, nothing injected.
+
+## HARD STOP RESOLVED (study owner decision)
+- Provenance anchor = p15/executed/V53_EXECUTED_BUILD.pine (sha256 2dafbafd...).
+- V53_ltf_sequence.pine stays canonical and unmodified (sha256 7490766b...).
+- A and B are NOT rerun; results preserved unchanged.
+- C1-G1 re-derived from the executed baseline into p15/exec_arms/, each verified
+  as exactly one strategy-bearing change with a byte-identical output layer.
+- Old p15/V53_P15_*.pine arm files: SUPERSEDED, NEVER EXECUTED, retained as history.
+- See p15/PHASE15_PROVENANCE_CORRECTION.md and p15/exec_arms/SINGLE_CONCEPT_VERIFICATION.txt.
+- Remaining budget: 40 pooled runs (C1, D1, E1, F1, G1). Resume at C1.
