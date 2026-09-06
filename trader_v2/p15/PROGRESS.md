@@ -76,3 +76,20 @@ See p15/PHASE15_HARD_STOP.md. Nothing repaired, nothing injected.
 - Report: p15/EXPERIMENT_D1_bos_reference.md
 - Clustering recorded but NOT interpreted; joint C1-G1 analysis deferred until after G1.
 - Next: E1 (FVG association). Remaining budget after D1: 24 pooled runs.
+
+## Experiment E1 -- FVG association (COMPLETE, 8/8)
+- Ran p15/exec_arms/V53_EXEC_P15_E1_fvg_association.pine (sha256 686850a4...);
+  pineVersion 139.0 -> 140.0. C1 residue 0, D1 residue 0 (qV fallback restored).
+- Integrity: sweeps, CHOCH, CHOCH retests AND BOS+disp all bit-identical to baseline
+  in every cell (1m bos 107, 3m bos 74). Divergence begins at FVG association only.
+  ALL assertions 0 including A24, as pre-registered. dropped = 0 in all 8 cells.
+- dispWait scan bound PRESERVED, not normalized: no new parameter, no compensation.
+  Signature is the collapse of "no FVG invalid" (deferred invalidation).
+- Propagation: BOS->FVG 71.0%->92.5% (1m), 67.6%->77.0% (3m); FVG->fill barely moves.
+  fills +36.6% (1m), +23.5% (3m).
+- FIRST arm where 1m is more sensitive than 3m, and FIRST arm to break the fold-A
+  concentration: all three folds move on 1m.
+- All 19 additional fills are losses; wins unchanged (5 on 1m, 4 on 3m).
+- Report: p15/EXPERIMENT_E1_fvg_association.md
+- Clustering recorded, NOT interpreted; joint C1-G1 analysis after G1.
+- Next: F1 (stop construction), then G1. Remaining budget: 16 pooled runs.
