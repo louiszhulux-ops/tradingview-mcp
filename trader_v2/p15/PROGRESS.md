@@ -115,3 +115,21 @@ See p15/PHASE15_HARD_STOP.md. Nothing repaired, nothing injected.
 - Report: p15/EXPERIMENT_F1_stop_construction.md
 - Clustering recorded, NOT interpreted. Changed win rates are NOT evidence either stop is better.
 - Next: G1 (CHOCH candidate selection), the last arm. Remaining budget: 8 pooled runs.
+
+## Experiment G1 -- CHOCH candidate selection (COMPLETE, 8/8) -- PHASE 15 DATA COLLECTION FINISHED
+- Ran p15/exec_arms/V53_EXEC_P15_G1_first_choch_pivot.pine (sha256 ef56c15f...);
+  pineVersion 141.0 -> 142.0. C1/D1/E1/F1 residue all 0; eligibility gate untouched.
+- Integrity: sweeps bit-identical in every cell (3836 pooled). A21 and A32 both 0 as
+  pre-registered; all other asserts 0; dropped 0. Counter 4 changes meaning by design
+  and is not surfaced by this build's compact table.
+- Propagation (expected and legitimate for this rule): 1m CHOCH -25.2%, retest -23.8%,
+  BOS -17.8%, FVG -17.1%, fills -14.6% -- attenuating monotonically down the funnel.
+  3m much weaker: -6.8% / -5.5% / -5.4% / -2.0% / -5.9%.
+- Loss absorbed by expire pre-CHOCH (MNQ L 1m 123 -> 330).
+- 1m is 3.7x more sensitive than 3m -- matches E1, opposes A/B/C1/D1.
+- R barely moves: 1m -13.389 -> -13.021, 3m +6.482 -> +7.517. On 3m folds A and B are
+  bit-identical to baseline; on 1m all three folds move, in opposite directions.
+- Lowest clustering share of any arm: 58.8% vs baseline 69.0%.
+- Report: p15/EXPERIMENT_G1_choch_selection.md
+- ALL 40 C1-G1 RUNS COMPLETE. No further experiments or probes. Next and last step:
+  the joint Phase 15 analysis of all five ablations vs the frozen executed baseline.
