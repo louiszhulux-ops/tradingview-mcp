@@ -50,3 +50,16 @@ See p15/PHASE15_HARD_STOP.md. Nothing repaired, nothing injected.
 - Old p15/V53_P15_*.pine arm files: SUPERSEDED, NEVER EXECUTED, retained as history.
 - See p15/PHASE15_PROVENANCE_CORRECTION.md and p15/exec_arms/SINGLE_CONCEPT_VERIFICATION.txt.
 - Remaining budget: 40 pooled runs (C1, D1, E1, F1, G1). Resume at C1.
+
+## Experiment C1 -- CHOCH retest tolerance (COMPLETE, 8/8)
+- Ran p15/exec_arms/V53_EXEC_P15_C1_retest_tol.pine (sha256 905ef1a9...).
+- Integrity: sweeps/CHOCH bit-identical to baseline cell by cell; retests rose in all
+  8 cells and fell in none; asserts 0; dropped 0.
+- 1m: funnel widens to the FVG stage but produces the IDENTICAL 41 fills / -13.389R.
+- 3m: +5 fills, all in fold A, from two MGC sweep clusters.
+- Report: p15/EXPERIMENT_C1_retest_tolerance.md
+- NOTE: pine_smart_compile clicks "Pine Save", so the cloud script
+  USER;b798deb2c9084500a1c38b14775961da now holds the C1 source at pineVersion 138.0.
+  The executed baseline is preserved on disk and must be re-injected and recompiled
+  after G1 to restore the cloud script.
+- Next: D1 (BOS reference). Remaining budget after C1: 32 pooled runs.
