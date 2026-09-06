@@ -50,6 +50,9 @@ jobs:
       - name: Static guard check (no Phase 16 dependency)
         run: python3 bot/tools/check_guards.py
 
-      - name: Guard unit tests
+      - name: Golden fixtures match a fresh extraction (A2 determinism)
+        run: python3 bot/tools/extract_golden.py --check
+
+      - name: Guard and fixture unit tests
         # stdlib unittest — no third-party dependencies by design.
         run: python3 -m unittest discover -s bot/tests -t . -v
