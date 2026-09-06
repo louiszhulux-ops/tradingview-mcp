@@ -1,0 +1,88 @@
+PHASE 16 DERIVATION AUDIT
+
+  source  trader_v2/p15/executed/V53_EXECUTED_BUILD.pine
+          sha256 2dafbafd5f6731e93c6fc4a2d55048bb32d5c0d75581ed7fffd877a0cf58efe6
+  derived trader_v2/p16/executed/V53_P16_OOS_BUILD.pine
+          sha256 5c21acfab1b0c832aaa562a0afc84c94e595da2318f2366dd153c1d08172b333
+
+1. FULL UNIFIED DIFF
+   --- executed_baseline
+   +++ p16_oos_build
+   @@ -12 +12 @@
+   -foldSel  = input.int(3,  "fold 0=A 1=B 2=C 3=A+B 4=all", minval=0, maxval=4, group="Test")
+   +foldSel  = input.int(3,  "fold 0=A 1=B 2=C 3=A+B 4=all 5=OOS", minval=0, maxval=5, group="Test")
+   @@ -32 +32 @@
+   -inFold = foldSel == 0 ? (time < FB) : foldSel == 1 ? (time >= FB and time < FC) : foldSel == 2 ? (time >= FC and time < FE) : foldSel == 3 ? (time < FC) : (time < FE)
+   +inFold = foldSel == 0 ? (time < FB) : foldSel == 1 ? (time >= FB and time < FC) : foldSel == 2 ? (time >= FC and time < FE) : foldSel == 3 ? (time < FC) : foldSel == 4 ? (time < FE) : (time >= FE)
+
+  [PASS] exactly 2 lines replaced (2 removed + 2 added); saw 4
+  [PASS] line count unchanged at 602
+
+2. THE TWO CHANGED LINES ARE BOTH FOLD-SELECTION
+  [PASS] - line is fold-selection: foldSel  = input.int(3,  "fold 0=A 1=B 2=C 3=A+B 4=all", minval=0, maxval=...
+  [PASS] + line is fold-selection: foldSel  = input.int(3,  "fold 0=A 1=B 2=C 3=A+B 4=all 5=OOS", minval=0, m...
+  [PASS] - line is fold-selection: inFold = foldSel == 0 ? (time < FB) : foldSel == 1 ? (time >= FB and time ...
+  [PASS] + line is fold-selection: inFold = foldSel == 0 ? (time < FB) : foldSel == 1 ? (time >= FB and time ...
+
+3. FOLD CONSTANTS PRESERVED EXACTLY
+  [PASS] FB = 1784160000000 unchanged
+  [PASS] FC = 1786233600000 unchanged
+  [PASS] FE = 1788134400000 unchanged
+
+4. EXISTING FOLD OPTIONS 0-4 SEMANTICALLY UNCHANGED
+  [PASS] option preserved: foldSel == 0 ? (time < FB)
+  [PASS] option preserved: foldSel == 1 ? (time >= FB and time < FC)
+  [PASS] option preserved: foldSel == 2 ? (time >= FC and time < FE)
+  [PASS] option preserved: foldSel == 3 ? (time < FC)
+  [PASS] option preserved: foldSel == 4 ? (time < FE)
+  [PASS] new trailing branch is exactly (time >= FE)
+
+5. ALL 15 FROZEN INPUTS: ORDER AND VALUES
+  [PASS] 15 inputs in both (a=15, b=15) -> in_0..in_14 mapping preserved
+  [PASS] only input index 1 (in_1, foldSel) differs; differing index is 1
+  [PASS] foldSel default still 3
+  [PASS] in_0 byte-identical: dirMode
+  [PASS] in_2 byte-identical: ltfSel
+  [PASS] in_3 byte-identical: tgtR
+  [PASS] in_4 byte-identical: bufATR
+  [PASS] in_5 byte-identical: minWick
+  [PASS] in_6 byte-identical: dispMin
+  [PASS] in_7 byte-identical: dispWait
+  [PASS] in_8 byte-identical: retBars
+  [PASS] in_9 byte-identical: minRatr
+  [PASS] in_10 byte-identical: maxRatr
+  [PASS] in_11 byte-identical: maxBars
+  [PASS] in_12 byte-identical: costUSD
+  [PASS] in_13 byte-identical: swLen
+  [PASS] in_14 byte-identical: lSw
+
+6. STRATEGY SECTIONS 1-6 BYTE-IDENTICAL BELOW THE FOLD GATE
+  [PASS] every line between the fold gate and section 7 is identical
+
+7. SECTION 7 OUTPUT LAYER BYTE-IDENTICAL
+  [PASS] output layer identical
+
+8. NAMED STRATEGY CONSTRUCTS UNCHANGED (count-for-count)
+  [PASS] sweep engine (V49 hitPD/hitAS/hitSW): 6 occurrence(s), unchanged
+  [PASS] pivot detector non-strict-left/strict-right: 1 occurrence(s), unchanged
+  [PASS] CHOCH break-on-close: 1 occurrence(s), unchanged
+  [PASS] CHOCH retest, zero tolerance: 1 occurrence(s), unchanged
+  [PASS] BOS reference w/ CHOCH-pivot exclusion: 1 occurrence(s), unchanged
+  [PASS] displacement + close-location clause: 1 occurrence(s), unchanged
+  [PASS] FVG: single-bar association at d+1: 1 occurrence(s), unchanged
+  [PASS] stop = sweep extreme +/- bufATR*ATR: 1 occurrence(s), unchanged
+  [PASS] R-band test: 1 occurrence(s), unchanged
+  [PASS] target / timeout / adverse-first: 1 occurrence(s), unchanged
+  [PASS] cost drag: 1 occurrence(s), unchanged
+  [PASS] concurrency SP=24: 1 occurrence(s), unchanged
+  [PASS] dispWait deadline: 1 occurrence(s), unchanged
+  [PASS] LTF architecture request.security_lower_tf: 5 occurrence(s), unchanged
+
+9. PROHIBITED CONSTRUCTS ABSENT
+  [PASS] no request.security( )
+  [PASS] no lookahead reference
+  [PASS] exactly 5 LTF fields (O,H,L,C,T) - no ATR/extra field
+
+======================================================================
+DERIVATION AUDIT: PASS - data-selection change only
+======================================================================

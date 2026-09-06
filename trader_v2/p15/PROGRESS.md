@@ -145,3 +145,35 @@ See p15/PHASE15_HARD_STOP.md. Nothing repaired, nothing injected.
   142.0. The executed baseline is preserved on disk at p15/executed/V53_EXECUTED_BUILD.pine
   and should be re-injected and recompiled to restore the cloud script when convenient.
   No data depends on this; the provenance anchor is the disk file.
+
+# ============================================================================
+# PHASE 16 -- OUT-OF-SAMPLE VALIDATION (PRE-REGISTERED, NOT YET EXECUTED)
+# ============================================================================
+- Authorised scope: DATA-SELECTION EXTENSION ONLY. No strategy/parameter/execution/
+  outcome change of any kind.
+- Phase 16 artifact: p16/executed/V53_P16_OOS_BUILD.pine
+    sha256 5c21acfab1b0c832aaa562a0afc84c94e595da2318f2366dd153c1d08172b333
+    derived from p15/executed/V53_EXECUTED_BUILD.pine (sha256 2dafbafd...)
+    by p16/derive_p16_oos.py -- 2 lines changed, both fold-selection:
+      in_1 foldSel range 0..4 -> 0..5, and a new trailing branch (time >= FE).
+    Options 0-4 semantically unchanged; FB/FC/FE untouched; 15 inputs in order;
+    strategy sections 1-6 and section 7 byte-identical. Audit: p16/P16_DERIVATION_AUDIT.txt
+    (all PASS), reproducible via p16/verify_p16_oos.py.
+- Forward window: 2026-08-31 00:00 UTC (= FE) -> 2027-04-02 00:00 UTC, 214 days,
+  targeting ~80 alternative-identity events at the observed 0.3737 events/day.
+- Stopping rule is a FIXED CALENDAR DATE, not an event count, so that no inspection
+  is needed to know when to stop.
+- H0: p = p* = 0.1751 (breakeven from the committed baseline ledger: mean win
+  +4.9238R, mean loss -1.0453R). One-sided exact binomial, alpha 0.05.
+  Pre-registered alternative p1 = 0.30 (large edge); power at N=80 is 0.80.
+  Detecting a modest edge is infeasible: p1=0.25 needs 182 events (~1.3y),
+  p1=0.214 needs 642 (~4.7y). Failure to reject means NO LARGE EDGE, not no edge.
+- Power floor: realized alt events < 40 -> automatic "insufficient".
+- Post-FE data is FORWARD-HELD-OUT, not "unavailable": it existed during Phase 15
+  but was excluded by the pre-registered FE gate and never inspected. Latest
+  timestamp in any committed Phase 13F/14/15 run: 2026-08-28 13:40.
+- Pre-written invalidation rule: any change to the artifact SHA during accumulation
+  invalidates the period; a new 214-day period starts from the change date.
+- NO STRATEGY RUN HAS OCCURRED. Nothing injected into TradingView. The chart still
+  carries the Phase 15 G1 build (pineVersion 142.0), to be replaced at the boundary.
+- Protocol: p16/PHASE16_PROTOCOL.md (committed BEFORE execution).
