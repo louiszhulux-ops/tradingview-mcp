@@ -1,0 +1,11 @@
+# POOLED A+B+C BASELINE CONTROL -- frozen V53, sha256 7490766b..., foldSel=ALL
+# Verification: every cell's fills and funnel counters equal the sum of the
+# committed per-fold Phase 13F (A,B) and Phase 14 (C) results.
+MGC L 1m ALL | bars 19218 | cov 18645 | sw 884 | ch 738 | rt 664 | bos 12 | fvg 10 | fill 4 | W1 Ls2 TO1 | Rpre 2 | Rpost 1.735 | avg 0.4337 | med -1.0371 | mcL 3 | ddR 3.224 | ddU 199.18 | usd 158.35 | ASSERT 0
+MGC L 3m ALL | bars 19218 | cov 19218 | sw 884 | ch 344 | rt 259 | bos 19 | fvg 13 | fill 5 | W1 Ls4 TO0 | Rpre 1 | Rpost 0.865 | avg 0.1730 | med -1.0221 | mcL 4 | ddR 4.112 | ddU 470.80 | usd 164.21 | ASSERT 0
+MGC S 1m ALL | bars 19218 | cov 18645 | sw 872 | ch 790 | rt 703 | bos 20 | fvg 18 | fill 8 | W2 Ls6 TO0 | Rpre 4 | Rpost 3.127 | avg 0.3909 | med -1.0327 | mcL 5 | ddR 5.356 | ddU 394.99 | usd -175.68 | ASSERT 0
+MGC S 3m ALL | bars 19218 | cov 19218 | sw 872 | ch 347 | rt 262 | bos 20 | fvg 13 | fill 1 | W0 Ls1 TO0 | Rpre -1 | Rpost -1.022 | avg -1.0217 | med -1.0217 | mcL 1 | ddR 1.022 | ddU 141.42 | usd -141.42 | ASSERT 0
+MNQ L 1m ALL | bars 19200 | cov 18644 | sw 952 | ch 829 | rt 762 | bos 33 | fvg 22 | fill 11 | W0 Ls9 TO2 | Rpre -11 | Rpost -11.223 | avg -1.0202 | med -1.0195 | mcL 11 | ddR 11.223 | ddU 1860.42 | usd -1860.42 | ASSERT 0
+MNQ L 3m ALL | bars 19200 | cov 19200 | sw 952 | ch 362 | rt 258 | bos 14 | fvg 6 | fill 1 | W0 Ls1 TO0 | Rpre -1 | Rpost -1.008 | avg -1.0077 | med -1.0077 | mcL 1 | ddR 1.008 | ddU 391.04 | usd -391.04 | ASSERT 0
+MNQ S 1m ALL | bars 19200 | cov 18644 | sw 1128 | ch 967 | rt 845 | bos 42 | fvg 26 | fill 18 | W2 Ls15 TO1 | Rpre -6 | Rpost -7.028 | avg -0.3904 | med -1.0482 | mcL 14 | ddR 14.815 | ddU 1159.15 | usd -370.31 | ASSERT 0
+MNQ S 3m ALL | bars 19200 | cov 19200 | sw 1128 | ch 427 | rt 316 | bos 21 | fvg 18 | fill 10 | W3 Ls6 TO1 | Rpre 8 | Rpost 7.647 | avg 0.7647 | med -1.0281 | mcL 4 | ddR 4.171 | ddU 364.30 | usd 807.51 | ASSERT 0
