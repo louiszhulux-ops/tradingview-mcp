@@ -20,3 +20,16 @@
 origin_bad_gateway), same failure mode as the outage recorded in
 `trader_v2/RELAY_OUTAGE.md`. Backing off and retrying; no strategy file, baseline
 or committed result is affected.**
+
+## Experiment B — displacement threshold (COMPLETE)
+- arm 1.25: 8/8 cells, commit 15ced38
+- arm 1.75: 8/8 cells, commit a47abd6
+- arm 2.00: 8/8 cells
+- Read-integrity diagnostic run on MGC S 1m (in_6 2.50 round-trip) to confirm the
+  1.75 == 2.00 invariance on MGC short is genuine, not a cached relay table.
+  Diagnostic only; 2.50 is not a study arm and is excluded from the data.
+- Upstream counters (sweeps / CHOCH / CHOCH retest) identical across all four arms
+  in every cell -> dispMin acts only at the BOS+displacement gate, as specified.
+- Report: p15/EXPERIMENT_B_displacement.md
+- Next in fixed order: C1 (CHOCH retest tolerance). C1 requires injecting
+  V53_P15_C1_retest_tol.pine via pine_set_source + pine_smart_compile first.
