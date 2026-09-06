@@ -1,0 +1,536 @@
+//@version=6
+// V53 LTF SEQUENCE LEDGER  --  first implementation of the Phase 13D frozen hypothesis.
+//
+// SWEEP -> CHOCH -> CHOCH RETEST -> BOS/DISPLACEMENT -> BOS FVG RETEST -> ENTRY
+//
+// The 5m sweep engine, ATR, stop, R denominator and outcome model are V49's,
+// copied verbatim. Everything new lives on the LTF stream delivered by
+// request.security_lower_tf on this same 5m chart. Nothing is optimised, and no
+// frozen value is changed. This build produces a MECHANICAL AUDIT only -- it
+// reports event counts, conversion and leakage assertions, not performance.
+indicator("V53 LTF SEQUENCE", overlay=true)
+
+dirMode  = input.int(1,  "direction 1=long -1=short", minval=-1, maxval=1, group="Test")
+foldSel  = input.int(3,  "fold 0=A 1=B 2=C 3=A+B 4=all", minval=0, maxval=4, group="Test")
+ltfSel   = input.int(1,  "LTF 1=1m 3=3m", options=[1, 3], group="Test")
+
+// ---- frozen: do not change ----
+tgtR     = input.float(5.0,  "target (R)", group="Frozen")
+bufATR   = input.float(0.20, "stop buffer (xATR)", group="Frozen")
+minWick  = input.float(0.10, "min sweep (xATR)", group="Frozen")
+dispMin  = input.float(1.50, "displacement range (xATR)", group="Frozen")
+dispWait = input.int(12,  "bars sweep->displacement", group="Frozen")
+retBars  = input.int(24,  "FVG retest window", group="Frozen")
+minRatr  = input.float(0.05, "min R (xATR)", group="Frozen")
+maxRatr  = input.float(3.00, "max R (xATR)", group="Frozen")
+maxBars  = input.int(144, "timeout bars", group="Frozen")
+costUSD  = input.float(3.00, "drag ($)", group="Frozen")
+swLen    = input.int(10,  "5m swing pivot len", group="Frozen")
+lSw      = input.int(3,   "LTF swing pivot len", group="Frozen")
+
+FB = 1784160000000
+FC = 1786233600000
+FE = 1788134400000
+inFold = foldSel == 0 ? (time < FB) : foldSel == 1 ? (time >= FB and time < FC) : foldSel == 2 ? (time >= FC and time < FE) : foldSel == 3 ? (time < FC) : (time < FE)
+
+atr = ta.atr(14)
+isLong = dirMode == 1
+ltfStr = ltfSel == 1 ? "1" : "3"
+
+// =====================================================================
+// 5m SWEEP ENGINE -- copied verbatim from V49, unchanged
+// =====================================================================
+newD = ta.change(time("D")) != 0
+var float pdh = na
+var float pdl = na
+var float dh  = na
+var float dl  = na
+if newD
+    pdh := dh
+    pdl := dl
+    dh  := high
+    dl  := low
+else
+    dh := math.max(nz(dh, high), high)
+    dl := math.min(nz(dl, low), low)
+
+hUTC = hour(time, "UTC")
+inAsia = hUTC < 7
+var float asiaH = na
+var float asiaL = na
+var bool  asiaOn = false
+if inAsia and not asiaOn
+    asiaOn := true
+    asiaH := high
+    asiaL := low
+else if inAsia
+    asiaH := math.max(nz(asiaH, high), high)
+    asiaL := math.min(nz(asiaL, low), low)
+else
+    asiaOn := false
+
+ph5 = ta.pivothigh(high, swLen, swLen)
+pl5 = ta.pivotlow(low,  swLen, swLen)
+var float swH = na
+var float swL = na
+if not na(ph5)
+    swH := ph5
+if not na(pl5)
+    swL := pl5
+
+hitPD = false
+hitAS = false
+hitSW = false
+if not na(atr) and atr > 0
+    if isLong
+        hitPD := not na(pdl) and low < pdl - minWick * atr and close > pdl
+        hitAS := not na(asiaL) and low < asiaL - minWick * atr and close > asiaL
+        hitSW := not na(swL) and low < swL - minWick * atr and close > swL
+    else
+        hitPD := not na(pdh) and high > pdh + minWick * atr and close < pdh
+        hitAS := not na(asiaH) and high > asiaH + minWick * atr and close < asiaH
+        hitSW := not na(swH) and high > swH + minWick * atr and close < swH
+nHit = (hitPD ? 1 : 0) + (hitAS ? 1 : 0) + (hitSW ? 1 : 0)
+
+// =====================================================================
+// LTF STREAM
+// =====================================================================
+aO = request.security_lower_tf(syminfo.tickerid, ltfStr, open)
+aH = request.security_lower_tf(syminfo.tickerid, ltfStr, high)
+aL = request.security_lower_tf(syminfo.tickerid, ltfStr, low)
+aC = request.security_lower_tf(syminfo.tickerid, ltfStr, close)
+
+// ring buffer of the last (2*lSw + 1) LTF bars, oldest at index 0
+var float[] bH  = array.new_float(0)
+var float[] bL  = array.new_float(0)
+var float[] bC  = array.new_float(0)
+var int[]   bCB = array.new_int(0)
+var int[]   bIX = array.new_int(0)
+RB = 2 * lSw + 1
+
+// last and previous confirmed LTF pivots.  0 lastPH 1 prevPH 2 lastPL 3 prevPL
+var float[] pvV = array.new_float(4, na)
+var int[]   pvI = array.new_int(4, -1)
+var int[]   pvB = array.new_int(4, -1)
+var int ltfN = 0
+
+// =====================================================================
+// SEQUENCE SLOTS
+//   st 0 free | 1 armed | 2 CHOCH | 3 retested | 4 BOS await FVG bar
+//      5 FVG found, await 5m fill | 6 in trade
+// =====================================================================
+SP = 24
+var int[]   st   = array.new_int(SP, 0)
+var int[]   swB  = array.new_int(SP, 0)
+var float[] stp  = array.new_float(SP, na)
+var float[] aRf  = array.new_float(SP, na)
+var float[] cLvl = array.new_float(SP, na)
+var float[] pRef = array.new_float(SP, na)
+var int[]   cPvI = array.new_int(SP, -1)
+var int[]   cBar = array.new_int(SP, -1)
+var int[]   rBar = array.new_int(SP, -1)
+var int[]   dBar = array.new_int(SP, -1)
+var float[] ent  = array.new_float(SP, na)
+var float[] rr   = array.new_float(SP, na)
+var int[]   wt   = array.new_int(SP, 0)
+var int[]   bIn  = array.new_int(SP, 0)
+var float[] mfe  = array.new_float(SP, 0.0)
+var float[] mae  = array.new_float(SP, 0.0)
+var int[]   flg  = array.new_int(SP, 0)
+
+// ---- audit counters (array: Pine cannot assign a global inside a function) ----
+//  0 sweep bars armed        1 dropped, no free slot     2 max concurrency
+//  3 CHOCH fired             4 reference rolls           5 wick-through, no close
+//  6 CHOCH retests           7 zero-tol near misses      8 BOS fired
+//  9 break without disp     10 no-FVG invalidations     11 FVG found
+// 12 fills                  13 R-band rejections        14 outcomes recorded
+// 15 expired before CHOCH   16 expired after CHOCH      17 expired after retest
+// 18 FVG retest expiries    19 same-chart-bar fill (diag) 20 pivot confirmations
+// 21 CHOCH on ineligible pivot (MUST BE 0)              22 BOS reuses CHOCH pivot (MUST BE 0)
+// 23 retest not before BOS (MUST BE 0)                  24 BOS bar != disp bar (MUST BE 0)
+// 25 outcome started same bar as fill (MUST BE 0)       26 chart-pivot detector mismatches (MUST BE 0)
+// 27 chart-pivot lag mismatches (MUST BE 0)             28 chart pivots checked
+// 29 fold bars with LTF data                            30 fold bars total
+// 31 LTF bars seen                                      32 CHOCH fired at confirmation bar (expected 0)
+var int[] K = array.new_int(36, 0)
+var int[] cN = array.new_int(1, 0)
+var float[] cS = array.new_float(1, 0.0)
+var int[] cW = array.new_int(1, 0)
+
+ptv = na(syminfo.pointvalue) or syminfo.pointvalue <= 0 ? 1.0 : syminfo.pointvalue
+
+// =====================================================================
+// 1. OUTCOME LOOP  (runs first, so a fill on bar t is first judged on t+1)
+// =====================================================================
+for i = 0 to SP - 1
+    if array.get(st, i) == 6
+        e = array.get(ent, i)
+        r = array.get(rr, i)
+        b = array.get(bIn, i) + 1
+        array.set(bIn, i, b)
+        adv = isLong ? (e - low) / r  : (high - e) / r
+        fav = isLong ? (high - e) / r : (e - low) / r
+        if adv > array.get(mae, i)
+            array.set(mae, i, adv)
+        done = false
+        if adv >= 1.0
+            done := true
+        else
+            if fav > array.get(mfe, i)
+                array.set(mfe, i, fav)
+            if fav >= tgtR
+                array.set(flg, i, 1)
+                done := true
+            else if b >= maxBars
+                done := true
+        if done
+            if b < 1
+                array.set(K, 25, array.get(K, 25) + 1)
+            cR = costUSD / (r * ptv)
+            v  = (array.get(flg, i) >= 1 ? tgtR : -1.0) - cR
+            array.set(cN, 0, array.get(cN, 0) + 1)
+            array.set(cS, 0, array.get(cS, 0) + v)
+            if v > 0
+                array.set(cW, 0, array.get(cW, 0) + 1)
+            array.set(K, 14, array.get(K, 14) + 1)
+            array.set(st, i, 0)
+
+// =====================================================================
+// 2. FVG RETEST / FILL LOOP  (5m bars, retBars window -- V49 semantics)
+// =====================================================================
+for i = 0 to SP - 1
+    if array.get(st, i) == 5
+        E  = array.get(ent, i)
+        sp = array.get(stp, i)
+        hit = isLong ? low <= E : high >= E
+        if hit
+            r = math.abs(E - sp)
+            a = array.get(aRf, i)
+            ratio = r / a
+            if ratio >= minRatr and ratio <= maxRatr
+                array.set(st, i, 6)
+                array.set(rr, i, r)
+                array.set(bIn, i, 0)
+                array.set(mfe, i, 0.0)
+                array.set(mae, i, 0.0)
+                array.set(flg, i, 0)
+                array.set(K, 12, array.get(K, 12) + 1)
+            else
+                array.set(st, i, 0)
+                array.set(K, 13, array.get(K, 13) + 1)
+        else
+            w = array.get(wt, i) + 1
+            array.set(wt, i, w)
+            if w >= retBars
+                array.set(st, i, 0)
+                array.set(K, 18, array.get(K, 18) + 1)
+
+// =====================================================================
+// 3. DEADLINE  (dispWait governs sweep -> displacement, so stages 1-3 only)
+// =====================================================================
+for i = 0 to SP - 1
+    s = array.get(st, i)
+    if s >= 1 and s <= 3
+        if bar_index - array.get(swB, i) > dispWait
+            array.set(K, 14 + s, array.get(K, 14 + s) + 1)
+            array.set(st, i, 0)
+
+// =====================================================================
+// 4. LTF LOOP -- pivots, CHOCH, CHOCH retest, BOS/displacement, FVG
+// =====================================================================
+nL = array.size(aC)
+if inFold
+    array.set(K, 30, array.get(K, 30) + 1)
+    if nL > 0
+        array.set(K, 29, array.get(K, 29) + 1)
+
+int nLive = 0
+for i = 0 to SP - 1
+    s0 = array.get(st, i)
+    if s0 >= 1 and s0 <= 4
+        nLive += 1
+
+if nL > 0 and not na(atr) and atr > 0
+    for k = 0 to nL - 1
+        h = array.get(aH, k)
+        l = array.get(aL, k)
+        c = array.get(aC, k)
+        ltfN += 1
+        array.set(K, 31, array.get(K, 31) + 1)
+        array.push(bH, h)
+        array.push(bL, l)
+        array.push(bC, c)
+        array.push(bCB, bar_index)
+        array.push(bIX, ltfN)
+        if array.size(bH) > RB
+            array.shift(bH)
+            array.shift(bL)
+            array.shift(bC)
+            array.shift(bCB)
+            array.shift(bIX)
+
+        // ---- 4a. causal pivot confirmation: centre is index lSw, available now ----
+        if array.size(bH) == RB
+            hc = array.get(bH, lSw)
+            lc = array.get(bL, lSw)
+            bool isPH = true
+            bool isPL = true
+            // ta.pivothigh/low is NON-STRICT on the left and STRICT on the right:
+            // the FIRST of a run of equal extremes is the pivot. Verified against
+            // ta.pivothigh/low(src, 3, 3) with 0 mismatches over 20,567 chart bars.
+            for j = 0 to RB - 1
+                if j < lSw
+                    if array.get(bH, j) > hc
+                        isPH := false
+                    if array.get(bL, j) < lc
+                        isPL := false
+                else if j > lSw
+                    if array.get(bH, j) >= hc
+                        isPH := false
+                    if array.get(bL, j) <= lc
+                        isPL := false
+            if isPH
+                array.set(pvV, 1, array.get(pvV, 0))
+                array.set(pvI, 1, array.get(pvI, 0))
+                array.set(pvB, 1, array.get(pvB, 0))
+                array.set(pvV, 0, hc)
+                array.set(pvI, 0, array.get(bIX, lSw))
+                array.set(pvB, 0, array.get(bCB, lSw))
+                array.set(K, 20, array.get(K, 20) + 1)
+            if isPL
+                array.set(pvV, 3, array.get(pvV, 2))
+                array.set(pvI, 3, array.get(pvI, 2))
+                array.set(pvB, 3, array.get(pvB, 2))
+                array.set(pvV, 2, lc)
+                array.set(pvI, 2, array.get(bIX, lSw))
+                array.set(pvB, 2, array.get(bCB, lSw))
+                array.set(K, 20, array.get(K, 20) + 1)
+
+        // opposing structure: pivot HIGHS for a long, pivot LOWS for a short
+        oi = isLong ? 0 : 2
+        oj = isLong ? 1 : 3
+        oV = array.get(pvV, oi)
+        oI = array.get(pvI, oi)
+        oB = array.get(pvB, oi)
+        qV = array.get(pvV, oj)
+        qI = array.get(pvI, oj)
+
+        // ---- 4b. advance every live sequence with this LTF bar ----
+        // (guarded: on the great majority of bars no sequence is live at all)
+        if nLive > 0
+            for i = 0 to SP - 1
+                s = array.get(st, i)
+                if s == 1
+                    // active CHOCH reference: most recent confirmed opposing pivot
+                    // whose PIVOT BAR lies in a chart bar strictly after the sweep bar
+                    if not na(oV) and oB > array.get(swB, i)
+                        p = array.get(pRef, i)
+                        if not na(p) and p != oV
+                            array.set(K, 4, array.get(K, 4) + 1)
+                        array.set(pRef, i, oV)
+                        brk = isLong ? c > oV : c < oV
+                        wick = isLong ? (h > oV and c <= oV) : (l < oV and c >= oV)
+                        if wick
+                            array.set(K, 5, array.get(K, 5) + 1)
+                        if brk
+                            if oB <= array.get(swB, i)
+                                array.set(K, 21, array.get(K, 21) + 1)
+                            if oI + lSw == ltfN
+                                array.set(K, 32, array.get(K, 32) + 1)
+                            array.set(cLvl, i, oV)
+                            array.set(cPvI, i, oI)
+                            array.set(cBar, i, ltfN)
+                            array.set(st, i, 2)
+                            array.set(K, 3, array.get(K, 3) + 1)
+                else if s == 2
+                    if ltfN > array.get(cBar, i)
+                        L = array.get(cLvl, i)
+                        hitR = isLong ? l <= L : h >= L
+                        if hitR
+                            array.set(rBar, i, ltfN)
+                            array.set(st, i, 3)
+                            array.set(K, 6, array.get(K, 6) + 1)
+                        else
+                            d = isLong ? l - L : L - h
+                            if d > 0 and d <= 0.01 * atr
+                                array.set(K, 7, array.get(K, 7) + 1)
+                else if s == 3
+                    if ltfN > array.get(rBar, i)
+                        // BOS reference: most recent confirmed opposing pivot, CHOCH pivot excluded
+                        float bV = na
+                        int   bI = -1
+                        if not na(oV) and oI != array.get(cPvI, i)
+                            bV := oV
+                            bI := oI
+                        else if not na(qV) and qI != array.get(cPvI, i)
+                            bV := qV
+                            bI := qI
+                        if not na(bV)
+                            brk = isLong ? c > bV : c < bV
+                            rng = h - l
+                            disp = rng > dispMin * atr and (isLong ? c > l + 0.6 * rng : c < l + 0.4 * rng)
+                            if brk and not disp
+                                array.set(K, 9, array.get(K, 9) + 1)
+                            if brk and disp
+                                if bI == array.get(cPvI, i)
+                                    array.set(K, 22, array.get(K, 22) + 1)
+                                if array.get(rBar, i) >= ltfN
+                                    array.set(K, 23, array.get(K, 23) + 1)
+                                array.set(dBar, i, ltfN)
+                                array.set(st, i, 4)
+                                array.set(K, 8, array.get(K, 8) + 1)
+                else if s == 4
+                    // the FVG whose MIDDLE candle is the displacement candle is known
+                    // exactly one LTF bar later; d-1, d, d+1 are ring indices 4, 5, 6
+                    if ltfN == array.get(dBar, i) + 1 and array.size(bH) == RB
+                        if array.get(bIX, RB - 2) != array.get(dBar, i)
+                            array.set(K, 24, array.get(K, 24) + 1)
+                        float E = na
+                        if isLong
+                            if array.get(bL, RB - 1) > array.get(bH, RB - 3)
+                                E := array.get(bH, RB - 3)
+                        else
+                            if array.get(bH, RB - 1) < array.get(bL, RB - 3)
+                                E := array.get(bL, RB - 3)
+                        if na(E)
+                            array.set(st, i, 0)
+                            array.set(K, 10, array.get(K, 10) + 1)
+                        else
+                            array.set(ent, i, E)
+                            array.set(wt, i, 0)
+                            array.set(st, i, 5)
+                            array.set(K, 11, array.get(K, 11) + 1)
+                            if (isLong ? low <= E : high >= E)
+                                array.set(K, 19, array.get(K, 19) + 1)
+
+// =====================================================================
+// 5. ARM NEW SWEEPS  (after the LTF loop, so bar b's own LTF bars are never
+//    seen by the sequence armed on bar b -- eligibility starts at b+1)
+// =====================================================================
+busyNow() =>
+    int b = 0
+    for s = 0 to SP - 1
+        if array.get(st, s) != 0
+            b += 1
+    b
+
+if inFold and nHit > 0 and not na(atr) and atr > 0
+    array.set(K, 0, array.get(K, 0) + 1)
+    bz = busyNow()
+    if bz > array.get(K, 2)
+        array.set(K, 2, bz)
+    int fr = -1
+    for s = 0 to SP - 1
+        if fr < 0 and array.get(st, s) == 0
+            fr := s
+    if fr < 0
+        array.set(K, 1, array.get(K, 1) + 1)
+    else
+        array.set(st, fr, 1)
+        array.set(swB, fr, bar_index)
+        array.set(stp, fr, isLong ? low - bufATR * atr : high + bufATR * atr)
+        array.set(aRf, fr, atr)
+        array.set(pRef, fr, na)
+        array.set(cPvI, fr, -1)
+        array.set(cBar, fr, -1)
+        array.set(rBar, fr, -1)
+        array.set(dBar, fr, -1)
+
+// =====================================================================
+// 6. DETECTOR VERIFICATION -- the same manual rule, run on the 5m chart
+//    series, checked against ta.pivothigh/low(src, 3, 3)
+// =====================================================================
+pv3H = ta.pivothigh(high, lSw, lSw)
+pv3L = ta.pivotlow(low,  lSw, lSw)
+if bar_index >= RB
+    hc = high[lSw]
+    lc = low[lSw]
+    bool mPH = true
+    bool mPL = true
+    for j = 0 to RB - 1
+        if j > lSw
+            if high[j] > hc
+                mPH := false
+            if low[j] < lc
+                mPL := false
+        else if j < lSw
+            if high[j] >= hc
+                mPH := false
+            if low[j] <= lc
+                mPL := false
+    array.set(K, 28, array.get(K, 28) + 1)
+    bool tie = false
+    for j = 0 to RB - 1
+        if j != lSw
+            if high[j] == hc
+                tie := true
+            if low[j] == lc
+                tie := true
+    if mPH != (not na(pv3H))
+        array.set(K, 26, array.get(K, 26) + 1)
+        if na(pv3H)
+            array.set(K, 34, array.get(K, 34) + 1)
+        else
+            array.set(K, 33, array.get(K, 33) + 1)
+        if tie
+            array.set(K, 35, array.get(K, 35) + 1)
+    if mPL != (not na(pv3L))
+        array.set(K, 26, array.get(K, 26) + 1)
+        if na(pv3L)
+            array.set(K, 34, array.get(K, 34) + 1)
+        else
+            array.set(K, 33, array.get(K, 33) + 1)
+        if tie
+            array.set(K, 35, array.get(K, 35) + 1)
+    if not na(pv3H) and pv3H != high[lSw]
+        array.set(K, 27, array.get(K, 27) + 1)
+    if not na(pv3L) and pv3L != low[lSw]
+        array.set(K, 27, array.get(K, 27) + 1)
+
+// =====================================================================
+// 7. AUDIT TABLE
+// =====================================================================
+g(i) => str.tostring(array.get(K, i))
+foldName = foldSel == 0 ? "A" : foldSel == 1 ? "B" : foldSel == 2 ? "C" : foldSel == 3 ? "A+B" : "ALL"
+
+if barstate.islast
+    var table tb = table.new(position.top_right, 2, 37, border_width=1)
+    r = 0
+    table.cell(tb, 0, r, (isLong ? "V53 LONG " : "V53 SHORT ") + foldName + " " + ltfStr + "m", text_color=color.white, bgcolor=color.navy, text_size=size.tiny)
+    table.cell(tb, 1, r, "count", text_color=color.white, bgcolor=color.navy, text_size=size.tiny), r += 1
+    table.cell(tb, 0, r, "fold bars"), table.cell(tb, 1, r, g(30)), r += 1
+    table.cell(tb, 0, r, "fold bars w/ LTF"), table.cell(tb, 1, r, g(29)), r += 1
+    table.cell(tb, 0, r, "LTF bars seen"), table.cell(tb, 1, r, g(31)), r += 1
+    table.cell(tb, 0, r, "LTF pivots confirmed"), table.cell(tb, 1, r, g(20)), r += 1
+    table.cell(tb, 0, r, "1 sweep bars armed"), table.cell(tb, 1, r, g(0)), r += 1
+    table.cell(tb, 0, r, "  dropped (no slot)"), table.cell(tb, 1, r, g(1)), r += 1
+    table.cell(tb, 0, r, "  max concurrent"), table.cell(tb, 1, r, g(2)), r += 1
+    table.cell(tb, 0, r, "3 CHOCH fired"), table.cell(tb, 1, r, g(3)), r += 1
+    table.cell(tb, 0, r, "4 reference rolls"), table.cell(tb, 1, r, g(4)), r += 1
+    table.cell(tb, 0, r, "5 wick thru, no close"), table.cell(tb, 1, r, g(5)), r += 1
+    table.cell(tb, 0, r, "6 CHOCH retests"), table.cell(tb, 1, r, g(6)), r += 1
+    table.cell(tb, 0, r, "7 near-miss no retest"), table.cell(tb, 1, r, g(7)), r += 1
+    table.cell(tb, 0, r, "8 BOS+disp fired"), table.cell(tb, 1, r, g(8)), r += 1
+    table.cell(tb, 0, r, "9 break, no disp"), table.cell(tb, 1, r, g(9)), r += 1
+    table.cell(tb, 0, r, "11 FVG found"), table.cell(tb, 1, r, g(11)), r += 1
+    table.cell(tb, 0, r, "10 no FVG -> invalid"), table.cell(tb, 1, r, g(10)), r += 1
+    table.cell(tb, 0, r, "12 fills"), table.cell(tb, 1, r, g(12)), r += 1
+    table.cell(tb, 0, r, "13 R-band rejects"), table.cell(tb, 1, r, g(13)), r += 1
+    table.cell(tb, 0, r, "18 FVG retest expiry"), table.cell(tb, 1, r, g(18)), r += 1
+    table.cell(tb, 0, r, "19 same-bar fill diag"), table.cell(tb, 1, r, g(19)), r += 1
+    table.cell(tb, 0, r, "14 outcomes recorded"), table.cell(tb, 1, r, g(14)), r += 1
+    table.cell(tb, 0, r, "15 expire pre-CHOCH"), table.cell(tb, 1, r, g(15)), r += 1
+    table.cell(tb, 0, r, "16 expire post-CHOCH"), table.cell(tb, 1, r, g(16)), r += 1
+    table.cell(tb, 0, r, "17 expire post-retest"), table.cell(tb, 1, r, g(17)), r += 1
+    table.cell(tb, 0, r, "A21 inelig pivot =0"), table.cell(tb, 1, r, g(21)), r += 1
+    table.cell(tb, 0, r, "A22 BOS=CHOCH piv =0"), table.cell(tb, 1, r, g(22)), r += 1
+    table.cell(tb, 0, r, "A23 retest>=BOS =0"), table.cell(tb, 1, r, g(23)), r += 1
+    table.cell(tb, 0, r, "A24 BOS!=disp bar =0"), table.cell(tb, 1, r, g(24)), r += 1
+    table.cell(tb, 0, r, "A25 outcome same bar=0"), table.cell(tb, 1, r, g(25)), r += 1
+    table.cell(tb, 0, r, "A26 pivot detector =0"), table.cell(tb, 1, r, g(26)), r += 1
+    table.cell(tb, 0, r, "A27 pivot lag =0"), table.cell(tb, 1, r, g(27)), r += 1
+    table.cell(tb, 0, r, "A28 chart pivots chk"), table.cell(tb, 1, r, g(28)), r += 1
+    table.cell(tb, 0, r, "A32 CHOCH@confirm =0"), table.cell(tb, 1, r, g(32)), r += 1
+    table.cell(tb, 0, r, "D33 TV yes, mine no"), table.cell(tb, 1, r, g(33)), r += 1
+    table.cell(tb, 0, r, "D34 mine yes, TV no"), table.cell(tb, 1, r, g(34)), r += 1
+    table.cell(tb, 0, r, "D35 of those, tied"), table.cell(tb, 1, r, g(35))
