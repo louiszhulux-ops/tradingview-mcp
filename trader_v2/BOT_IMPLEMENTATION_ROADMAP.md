@@ -571,7 +571,7 @@ G. HYGIENE / FUTURE ────────────────────
      latches the kill switch rather than looping.
   3. Config is layered `defaults → file → env`, fully logged at startup **with secrets redacted**;
      startup fails fast if any required var is missing.
-  4. `bot/data/` (the SQLite file) is a mounted volume and survives container replacement; a
+  4. `bot/var/` (the SQLite file) is a mounted volume and survives container replacement; a
      documented, tested backup/restore procedure exists.
   5. `RUNBOOK.md` covers: start, stop, flatten-and-halt, clear kill switch, restore from backup,
      what to do on each halt reason code.

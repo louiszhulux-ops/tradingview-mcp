@@ -34,3 +34,22 @@ jobs:
       - name: Audit (high severity)
         run: npm audit --audit-level=high
         continue-on-error: true
+
+  phase16-guards:
+    # Roadmap task A1. Structural protection for the Phase 16 held-out window:
+    # the guard must fail closed and no bot/ code may depend on Phase 16 data.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Static guard check (no Phase 16 dependency)
+        run: python3 bot/tools/check_guards.py
+
+      - name: Guard unit tests
+        # stdlib unittest — no third-party dependencies by design.
+        run: python3 -m unittest discover -s bot/tests -t . -v

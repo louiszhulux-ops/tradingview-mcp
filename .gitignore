@@ -7,3 +7,13 @@ discovery-log.json
 rules.json
 trader/__pycache__/
 __pycache__/
+
+# --- bot/ (trading system) ---
+.env
+*.key
+*.pem
+secrets/
+bot/var/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
