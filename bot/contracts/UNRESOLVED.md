@@ -142,6 +142,25 @@ of any replay are the place a mismatch will show.
 
 ---
 
+---
+
+## B2 status of U2–U5
+
+B2 (`bot/strategy/v53/`) reproduces each of these as the artifact has them and
+does not repair any:
+
+* **U2** — the LTF timestamp is taken from the sub-bar as given; the engine
+  never substitutes a parent timestamp of its own.
+* **U3** — the engine consumes whatever sub-bars a `ParentBar` carries and never
+  assumes a per-parent count, so the open 3m alignment cannot silently bite.
+* **U4** — `V53Config.point_value` is required and must be positive. V53's
+  silent `1.0` fallback is refused at construction.
+* **U5** — implemented as Wilder RMA seeded by an SMA of the first 14 true
+  ranges. Only B3, against Pine, can confirm it.
+
+None is a blocker for B2. All four remain open until B3.
+
+
 # Resolved, but easy to get wrong
 
 Documented here because each is a plausible-looking wrong assumption.
