@@ -1,0 +1,6 @@
+FUNNEL L A 1m: foldbars 10368 | w/LTF 9812 | sweeps 468 | CHOCH 396 | retests 366 | BOS+disp 18 | FVG 11 | fills 2
+ break-no-disp 2421 | noFVG 7 | Rband 4 | FVGexpiry 5 | expire 72/30/348 | dropped 0 | ASSERTS all 0
+PERF MNQ1! L 1m A: cov 2026-05-27 02:20 -> 2026-07-15 23:55 | fills 2 | W0 Lstop2 TO0 | wr 0% | Rpre -2 | Rpost -2.055 | avg -1.0276 | med -1.0276 | exp -1.0276R | maxConsecL 2 | DD_R 2.055 | DD_$ 231.36 | tot$ -231.36
+LEDGER:
+MNQ1!|L|1m|A|sw 2026-06-25 11:30|SW|swX 30099|ch 2026-06-25 12:04|chL 30140.5|rt 2026-06-25 12:13|bos 2026-06-25 12:30|bosL 30145.75|fvg 30140.25-30204.75|en 2026-06-25 13:15|enPx 30140.25|stop 30094.4432|LOSS|-1.033R|$-94.61|stop|3bars
+MNQ1!|L|1m|A|sw 2026-07-05 22:10|SW|swX 29875.5|ch 2026-07-05 22:20|chL 29923.5|rt 2026-07-05 22:21|bos 2026-07-05 23:12|bosL 29961|fvg 29937.75-29982|en 2026-07-06 00:00|enPx 29937.75|stop 29870.877|LOSS|-1.022R|$-136.75|stop|6bars

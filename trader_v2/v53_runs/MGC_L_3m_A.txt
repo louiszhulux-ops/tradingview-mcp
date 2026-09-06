@@ -1,0 +1,10 @@
+FUNNEL L A 3m: foldbars 10386 | w/LTF 10386 | sweeps 544 | CHOCH 212 | retests 164 | BOS+disp 9 | FVG 6 | fills 5
+ break-no-disp 163 | noFVG 3 | Rband 1 | FVGexpiry 0 | expire 332/48/155 | dropped 0 | ASSERTS all 0
+PERF MGC1! L 3m A: cov 2026-05-24 22:00 -> 2026-07-15 23:55 | fills 5 | W1 Lstop4 TO0 | wr 20% | Rpre 1 | Rpost 0.865 | avg 0.173 | med -1.0221 | exp 0.173R | maxConsecL 4 | DD_R 4.112 | DD_$ 470.80 | tot$ 164.21
+LEDGER:
+MGC1!|L|3m|A|sw 2026-05-28 04:50|PD|swX 4397.3|ch 2026-05-28 05:09|chL 4403.9|rt 2026-05-28 05:12|bos 2026-05-28 05:30|bosL 4406.4|fvg 4408.8-4412.6|en 2026-05-28 06:05|enPx 4408.8|stop 4396.0398|WIN|4.976R|$635.01|target|96bars
+MGC1!|L|3m|A|sw 2026-07-03 07:00|SW|swX 4184|ch 2026-07-03 07:48|chL 4193.6|rt 2026-07-03 07:51|bos 2026-07-03 08:00|bosL 4194.7|fvg 4190.4-4194.7|en 2026-07-03 08:45|enPx 4190.4|stop 4183.1142|LOSS|-1.041R|$-75.86|stop|9bars
+MGC1!|L|3m|A|sw 2026-07-13 00:40|PD|swX 4076.3|ch 2026-07-13 01:06|chL 4085.4|rt 2026-07-13 01:09|bos 2026-07-13 01:30|bosL 4090.9|fvg 4088.7-4090.8|en 2026-07-13 01:50|enPx 4088.7|stop 4075.0374|LOSS|-1.022R|$-139.63|stop|7bars
+MGC1!|L|3m|A|sw 2026-07-13 04:10|SW|swX 4060|ch 2026-07-13 04:57|chL 4065.5|rt 2026-07-13 05:00|bos 2026-07-13 05:06|bosL 4065.7|fvg 4070.4-4076.1|en 2026-07-13 05:20|enPx 4070.4|stop 4059.0571|LOSS|-1.026R|$-116.43|stop|8bars
+MGC1!|L|3m|A|sw 2026-07-13 04:15|SW|swX 4057.8|ch 2026-07-13 04:57|chL 4065.5|rt 2026-07-13 05:00|bos 2026-07-13 05:06|bosL 4065.7|fvg 4070.4-4076.1|en 2026-07-13 05:20|enPx 4070.4|stop 4056.8116|LOSS|-1.022R|$-138.88|stop|8bars
+NOTE: the last two share one CHOCH/BOS/FVG/entry -- two sweep bars 5 min apart converged on the same LTF structure.

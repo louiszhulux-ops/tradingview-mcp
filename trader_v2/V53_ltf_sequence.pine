@@ -35,6 +35,7 @@ inFold = foldSel == 0 ? (time < FB) : foldSel == 1 ? (time >= FB and time < FC) 
 
 atr = ta.atr(14)
 isLong = dirMode == 1
+foldName2 = foldSel == 0 ? "A" : foldSel == 1 ? "B" : foldSel == 2 ? "C" : foldSel == 3 ? "A+B" : "ALL"
 ltfStr = ltfSel == 1 ? "1" : "3"
 
 // =====================================================================
@@ -99,6 +100,7 @@ aO = request.security_lower_tf(syminfo.tickerid, ltfStr, open)
 aH = request.security_lower_tf(syminfo.tickerid, ltfStr, high)
 aL = request.security_lower_tf(syminfo.tickerid, ltfStr, low)
 aC = request.security_lower_tf(syminfo.tickerid, ltfStr, close)
+aT = request.security_lower_tf(syminfo.tickerid, ltfStr, time)
 
 // ring buffer of the last (2*lSw + 1) LTF bars, oldest at index 0
 var float[] bH  = array.new_float(0)
@@ -106,6 +108,7 @@ var float[] bL  = array.new_float(0)
 var float[] bC  = array.new_float(0)
 var int[]   bCB = array.new_int(0)
 var int[]   bIX = array.new_int(0)
+var int[]   bTM = array.new_int(0)
 RB = 2 * lSw + 1
 
 // last and previous confirmed LTF pivots.  0 lastPH 1 prevPH 2 lastPL 3 prevPL
@@ -137,6 +140,26 @@ var int[]   bIn  = array.new_int(SP, 0)
 var float[] mfe  = array.new_float(SP, 0.0)
 var float[] mae  = array.new_float(SP, 0.0)
 var int[]   flg  = array.new_int(SP, 0)
+// ---- ledger fields (measurement only; no strategy state) ----
+var int[]    lSwT = array.new_int(SP, 0)
+var string[] lSwG = array.new_string(SP, "")
+var float[]  lSwX = array.new_float(SP, na)
+var int[]    lChT = array.new_int(SP, 0)
+var int[]    lRtT = array.new_int(SP, 0)
+var int[]    lBoT = array.new_int(SP, 0)
+var float[]  lBoL = array.new_float(SP, na)
+var float[]  lFlo = array.new_float(SP, na)
+var float[]  lFhi = array.new_float(SP, na)
+var int[]    lEnT = array.new_int(SP, 0)
+
+var string[] LED = array.new_string(0)
+var float[]  RS  = array.new_float(0)
+// 0 wins 1 stops 2 timeouts 3 consecLoss 4 maxConsecLoss
+var int[]   ST2 = array.new_int(5, 0)
+// 0 sumRpre 1 sumRpost 2 sumUSD 3 cumR 4 peakR 5 maxDDR 6 cumUSD 7 peakUSD 8 maxDDUSD
+var float[] FS  = array.new_float(9, 0.0)
+var int covFirst = 0
+var int covLast  = 0
 
 // ---- audit counters (array: Pine cannot assign a global inside a function) ----
 //  0 sweep bars armed        1 dropped, no free slot     2 max concurrency
@@ -159,6 +182,9 @@ var int[] cW = array.new_int(1, 0)
 
 ptv = na(syminfo.pointvalue) or syminfo.pointvalue <= 0 ? 1.0 : syminfo.pointvalue
 
+ft(t) => t == 0 ? "-" : str.format_time(t, "yyyy-MM-dd HH:mm", "UTC")
+px(x) => na(x) ? "-" : str.tostring(x, "#.####")
+
 // =====================================================================
 // 1. OUTCOME LOOP  (runs first, so a fill on bar t is first judged on t+1)
 // =====================================================================
@@ -173,26 +199,74 @@ for i = 0 to SP - 1
         if adv > array.get(mae, i)
             array.set(mae, i, adv)
         done = false
+        int rsn = 0
         if adv >= 1.0
             done := true
+            rsn := 1
         else
             if fav > array.get(mfe, i)
                 array.set(mfe, i, fav)
             if fav >= tgtR
                 array.set(flg, i, 1)
                 done := true
+                rsn := 2
             else if b >= maxBars
                 done := true
+                rsn := 3
         if done
             if b < 1
                 array.set(K, 25, array.get(K, 25) + 1)
             cR = costUSD / (r * ptv)
-            v  = (array.get(flg, i) >= 1 ? tgtR : -1.0) - cR
+            won = array.get(flg, i) >= 1
+            vPre = won ? tgtR : -1.0
+            v  = vPre - cR
+            usd = v * r * ptv
             array.set(cN, 0, array.get(cN, 0) + 1)
             array.set(cS, 0, array.get(cS, 0) + v)
             if v > 0
                 array.set(cW, 0, array.get(cW, 0) + 1)
             array.set(K, 14, array.get(K, 14) + 1)
+            // ---- measurement only ----
+            if won
+                array.set(ST2, 0, array.get(ST2, 0) + 1)
+                array.set(ST2, 3, 0)
+            else
+                if rsn == 1
+                    array.set(ST2, 1, array.get(ST2, 1) + 1)
+                else
+                    array.set(ST2, 2, array.get(ST2, 2) + 1)
+                cl = array.get(ST2, 3) + 1
+                array.set(ST2, 3, cl)
+                if cl > array.get(ST2, 4)
+                    array.set(ST2, 4, cl)
+            array.set(FS, 0, array.get(FS, 0) + vPre)
+            array.set(FS, 1, array.get(FS, 1) + v)
+            array.set(FS, 2, array.get(FS, 2) + usd)
+            cr2 = array.get(FS, 3) + v
+            array.set(FS, 3, cr2)
+            if cr2 > array.get(FS, 4)
+                array.set(FS, 4, cr2)
+            ddr = array.get(FS, 4) - cr2
+            if ddr > array.get(FS, 5)
+                array.set(FS, 5, ddr)
+            cu2 = array.get(FS, 6) + usd
+            array.set(FS, 6, cu2)
+            if cu2 > array.get(FS, 7)
+                array.set(FS, 7, cu2)
+            ddu = array.get(FS, 7) - cu2
+            if ddu > array.get(FS, 8)
+                array.set(FS, 8, ddu)
+            array.push(RS, v)
+            rec = syminfo.ticker + "|" + (isLong ? "L" : "S") + "|" + ltfStr + "m|" + foldName2 +
+              "|sw " + ft(array.get(lSwT, i)) + "|" + array.get(lSwG, i) + "|swX " + px(array.get(lSwX, i)) +
+              "|ch " + ft(array.get(lChT, i)) + "|chL " + px(array.get(cLvl, i)) +
+              "|rt " + ft(array.get(lRtT, i)) +
+              "|bos " + ft(array.get(lBoT, i)) + "|bosL " + px(array.get(lBoL, i)) +
+              "|fvg " + px(array.get(lFlo, i)) + "-" + px(array.get(lFhi, i)) +
+              "|en " + ft(array.get(lEnT, i)) + "|enPx " + px(array.get(ent, i)) + "|stop " + px(array.get(stp, i)) +
+              "|" + (won ? "WIN" : "LOSS") + "|" + str.tostring(v, "#.###") + "R|$" + str.tostring(usd, "#.##") +
+              "|" + (rsn == 1 ? "stop" : rsn == 2 ? "target" : "timeout") + "|" + str.tostring(b) + "bars"
+            array.push(LED, rec)
             array.set(st, i, 0)
 
 // =====================================================================
@@ -214,6 +288,7 @@ for i = 0 to SP - 1
                 array.set(mfe, i, 0.0)
                 array.set(mae, i, 0.0)
                 array.set(flg, i, 0)
+                array.set(lEnT, i, time)
                 array.set(K, 12, array.get(K, 12) + 1)
             else
                 array.set(st, i, 0)
@@ -243,6 +318,9 @@ if inFold
     array.set(K, 30, array.get(K, 30) + 1)
     if nL > 0
         array.set(K, 29, array.get(K, 29) + 1)
+        if covFirst == 0
+            covFirst := time
+        covLast := time
 
 int nLive = 0
 for i = 0 to SP - 1
@@ -262,12 +340,14 @@ if nL > 0 and not na(atr) and atr > 0
         array.push(bC, c)
         array.push(bCB, bar_index)
         array.push(bIX, ltfN)
+        array.push(bTM, array.size(aT) > k ? array.get(aT, k) : time)
         if array.size(bH) > RB
             array.shift(bH)
             array.shift(bL)
             array.shift(bC)
             array.shift(bCB)
             array.shift(bIX)
+            array.shift(bTM)
 
         // ---- 4a. causal pivot confirmation: centre is index lSw, available now ----
         if array.size(bH) == RB
@@ -340,6 +420,7 @@ if nL > 0 and not na(atr) and atr > 0
                             array.set(cLvl, i, oV)
                             array.set(cPvI, i, oI)
                             array.set(cBar, i, ltfN)
+                            array.set(lChT, i, array.get(bTM, RB - 1))
                             array.set(st, i, 2)
                             array.set(K, 3, array.get(K, 3) + 1)
                 else if s == 2
@@ -348,6 +429,7 @@ if nL > 0 and not na(atr) and atr > 0
                         hitR = isLong ? l <= L : h >= L
                         if hitR
                             array.set(rBar, i, ltfN)
+                            array.set(lRtT, i, array.get(bTM, RB - 1))
                             array.set(st, i, 3)
                             array.set(K, 6, array.get(K, 6) + 1)
                         else
@@ -377,6 +459,8 @@ if nL > 0 and not na(atr) and atr > 0
                                 if array.get(rBar, i) >= ltfN
                                     array.set(K, 23, array.get(K, 23) + 1)
                                 array.set(dBar, i, ltfN)
+                                array.set(lBoT, i, array.get(bTM, RB - 1))
+                                array.set(lBoL, i, bV)
                                 array.set(st, i, 4)
                                 array.set(K, 8, array.get(K, 8) + 1)
                 else if s == 4
@@ -386,17 +470,22 @@ if nL > 0 and not na(atr) and atr > 0
                         if array.get(bIX, RB - 2) != array.get(dBar, i)
                             array.set(K, 24, array.get(K, 24) + 1)
                         float E = na
+                        float Z = na
                         if isLong
                             if array.get(bL, RB - 1) > array.get(bH, RB - 3)
                                 E := array.get(bH, RB - 3)
+                                Z := array.get(bL, RB - 1)
                         else
                             if array.get(bH, RB - 1) < array.get(bL, RB - 3)
                                 E := array.get(bL, RB - 3)
+                                Z := array.get(bH, RB - 1)
                         if na(E)
                             array.set(st, i, 0)
                             array.set(K, 10, array.get(K, 10) + 1)
                         else
                             array.set(ent, i, E)
+                            array.set(lFlo, i, math.min(E, Z))
+                            array.set(lFhi, i, math.max(E, Z))
                             array.set(wt, i, 0)
                             array.set(st, i, 5)
                             array.set(K, 11, array.get(K, 11) + 1)
@@ -428,6 +517,9 @@ if inFold and nHit > 0 and not na(atr) and atr > 0
     else
         array.set(st, fr, 1)
         array.set(swB, fr, bar_index)
+        array.set(lSwT, fr, time)
+        array.set(lSwG, fr, (hitPD ? "PD" : "") + (hitAS ? (hitPD ? "+AS" : "AS") : "") + (hitSW ? (hitPD or hitAS ? "+SW" : "SW") : ""))
+        array.set(lSwX, fr, isLong ? low : high)
         array.set(stp, fr, isLong ? low - bufATR * atr : high + bufATR * atr)
         array.set(aRf, fr, atr)
         array.set(pRef, fr, na)
@@ -534,3 +626,40 @@ if barstate.islast
     table.cell(tb, 0, r, "D33 TV yes, mine no"), table.cell(tb, 1, r, g(33)), r += 1
     table.cell(tb, 0, r, "D34 mine yes, TV no"), table.cell(tb, 1, r, g(34)), r += 1
     table.cell(tb, 0, r, "D35 of those, tied"), table.cell(tb, 1, r, g(35))
+
+    // ---- performance summary (measurement only) ----
+    nT = array.size(RS)
+    float medR = na
+    if nT > 0
+        srt = array.copy(RS)
+        array.sort(srt, order.ascending)
+        medR := nT % 2 == 1 ? array.get(srt, nT / 2) : (array.get(srt, nT / 2 - 1) + array.get(srt, nT / 2)) / 2.0
+    var table tp = table.new(position.bottom_right, 2, 18, border_width=1)
+    q = 0
+    table.cell(tp, 0, q, "PERF " + syminfo.ticker + " " + (isLong ? "L" : "S") + " " + ltfStr + "m fold " + foldName2, text_color=color.white, bgcolor=color.maroon, text_size=size.tiny)
+    table.cell(tp, 1, q, "value", text_color=color.white, bgcolor=color.maroon, text_size=size.tiny), q += 1
+    table.cell(tp, 0, q, "coverage first"), table.cell(tp, 1, q, ft(covFirst)), q += 1
+    table.cell(tp, 0, q, "coverage last"),  table.cell(tp, 1, q, ft(covLast)), q += 1
+    table.cell(tp, 0, q, "fills"),          table.cell(tp, 1, q, str.tostring(nT)), q += 1
+    table.cell(tp, 0, q, "wins"),           table.cell(tp, 1, q, str.tostring(array.get(ST2, 0))), q += 1
+    table.cell(tp, 0, q, "losses (stop)"),  table.cell(tp, 1, q, str.tostring(array.get(ST2, 1))), q += 1
+    table.cell(tp, 0, q, "timeouts"),       table.cell(tp, 1, q, str.tostring(array.get(ST2, 2))), q += 1
+    table.cell(tp, 0, q, "win rate"),       table.cell(tp, 1, q, nT > 0 ? str.tostring(100.0 * array.get(ST2, 0) / nT, "#.#") + "%" : "-"), q += 1
+    table.cell(tp, 0, q, "loss rate"),      table.cell(tp, 1, q, nT > 0 ? str.tostring(100.0 * (nT - array.get(ST2, 0)) / nT, "#.#") + "%" : "-"), q += 1
+    table.cell(tp, 0, q, "total R pre-drag"),  table.cell(tp, 1, q, str.tostring(array.get(FS, 0), "#.###")), q += 1
+    table.cell(tp, 0, q, "total R post-drag"), table.cell(tp, 1, q, str.tostring(array.get(FS, 1), "#.###")), q += 1
+    table.cell(tp, 0, q, "avg R/trade (post)"),table.cell(tp, 1, q, nT > 0 ? str.tostring(array.get(FS, 1) / nT, "#.####") : "-"), q += 1
+    table.cell(tp, 0, q, "median R (post)"),   table.cell(tp, 1, q, nT > 0 ? str.tostring(medR, "#.####") : "-"), q += 1
+    table.cell(tp, 0, q, "expectancy/trade"),  table.cell(tp, 1, q, nT > 0 ? str.tostring(array.get(FS, 1) / nT, "#.####") + "R" : "-"), q += 1
+    table.cell(tp, 0, q, "max consec losses"), table.cell(tp, 1, q, str.tostring(array.get(ST2, 4))), q += 1
+    table.cell(tp, 0, q, "max DD (R)"),        table.cell(tp, 1, q, str.tostring(array.get(FS, 5), "#.###")), q += 1
+    table.cell(tp, 0, q, "max DD ($)"),        table.cell(tp, 1, q, str.tostring(array.get(FS, 8), "#.##")), q += 1
+    table.cell(tp, 0, q, "total $ (post-drag)"), table.cell(tp, 1, q, str.tostring(array.get(FS, 2), "#.##"))
+
+    // ---- individual trade ledger ----
+    nLd = array.size(LED)
+    var table tl = table.new(position.bottom_left, 1, 41, border_width=1)
+    table.cell(tl, 0, 0, "TRADE LEDGER  " + syminfo.ticker + " " + (isLong ? "LONG" : "SHORT") + " " + ltfStr + "m fold " + foldName2 + "  (" + str.tostring(nLd) + " fills)", text_color=color.white, bgcolor=color.black, text_size=size.tiny)
+    if nLd > 0
+        for z = 0 to math.min(nLd, 40) - 1
+            table.cell(tl, 0, z + 1, array.get(LED, z), text_size=size.tiny)
