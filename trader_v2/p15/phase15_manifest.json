@@ -103,7 +103,7 @@
    "derived_from_sha256": "2dafbafd5f6731e93c6fc4a2d55048bb32d5c0d75581ed7fffd877a0cf58efe6",
    "output_layer": "byte-identical to the executed baseline (verified)",
    "single_concept_verification": "trader_v2/p15/exec_arms/SINGLE_CONCEPT_VERIFICATION.txt",
-   "status": "PENDING"
+   "status": "COMPLETE"
   },
   {
    "id": "D1",
@@ -130,7 +130,7 @@
    "derived_from_sha256": "2dafbafd5f6731e93c6fc4a2d55048bb32d5c0d75581ed7fffd877a0cf58efe6",
    "output_layer": "byte-identical to the executed baseline (verified)",
    "single_concept_verification": "trader_v2/p15/exec_arms/SINGLE_CONCEPT_VERIFICATION.txt",
-   "status": "PENDING"
+   "status": "COMPLETE"
   },
   {
    "id": "E1",
@@ -160,7 +160,7 @@
    "derived_from_sha256": "2dafbafd5f6731e93c6fc4a2d55048bb32d5c0d75581ed7fffd877a0cf58efe6",
    "output_layer": "byte-identical to the executed baseline (verified)",
    "single_concept_verification": "trader_v2/p15/exec_arms/SINGLE_CONCEPT_VERIFICATION.txt",
-   "status": "PENDING"
+   "status": "COMPLETE"
   },
   {
    "id": "F1",
@@ -188,7 +188,7 @@
    "derived_from_sha256": "2dafbafd5f6731e93c6fc4a2d55048bb32d5c0d75581ed7fffd877a0cf58efe6",
    "output_layer": "byte-identical to the executed baseline (verified)",
    "single_concept_verification": "trader_v2/p15/exec_arms/SINGLE_CONCEPT_VERIFICATION.txt",
-   "status": "PENDING"
+   "status": "COMPLETE"
   },
   {
    "id": "G1",
@@ -217,7 +217,7 @@
    "derived_from_sha256": "2dafbafd5f6731e93c6fc4a2d55048bb32d5c0d75581ed7fffd877a0cf58efe6",
    "output_layer": "byte-identical to the executed baseline (verified)",
    "single_concept_verification": "trader_v2/p15/exec_arms/SINGLE_CONCEPT_VERIFICATION.txt",
-   "status": "PENDING"
+   "status": "COMPLETE"
   }
  ],
  "provenance_correction": {
@@ -289,5 +289,22 @@
    "13G": "primary 31 clusters, alternative 27 clusters, 60.0% of fills in multi-fill clusters",
    "14_foldC": "18 fills, 3 wins, 15 losses, -0.842R, 10 alternative events"
   }
- }
+ },
+ "final_report": "trader_v2/PHASE15_SENSITIVITY_REPORT.md",
+ "joint_analysis": {
+  "script": "trader_v2/p15/p15_joint.py",
+  "output": "trader_v2/p15/P15_JOINT_DATA.txt"
+ },
+ "runs_executed": {
+  "baseline": 8,
+  "A": 24,
+  "B": 24,
+  "C1": 8,
+  "D1": 8,
+  "E1": 8,
+  "F1": 8,
+  "G1": 8,
+  "total": 96
+ },
+ "phase_status": "COMPLETE - no winner declared, no parameter recommendation made"
 }

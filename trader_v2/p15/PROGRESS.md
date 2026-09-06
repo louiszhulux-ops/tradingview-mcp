@@ -133,3 +133,15 @@ See p15/PHASE15_HARD_STOP.md. Nothing repaired, nothing injected.
 - Report: p15/EXPERIMENT_G1_choch_selection.md
 - ALL 40 C1-G1 RUNS COMPLETE. No further experiments or probes. Next and last step:
   the joint Phase 15 analysis of all five ablations vs the frozen executed baseline.
+
+## PHASE 15 COMPLETE
+- 96 relay runs total (baseline 8, A 24, B 24, C1 8, D1 8, E1 8, F1 8, G1 8).
+- Joint analysis: p15/p15_joint.py -> p15/P15_JOINT_DATA.txt
+- Final report: trader_v2/PHASE15_SENSITIVITY_REPORT.md (answers all 8 questions).
+- Manifest finalised; all arms marked COMPLETE.
+- No winner, no optimal variant, no parameter recommendation.
+- OUTSTANDING HOUSEKEEPING: the TradingView cloud script
+  USER;b798deb2c9084500a1c38b14775961da currently holds the G1 source at pineVersion
+  142.0. The executed baseline is preserved on disk at p15/executed/V53_EXECUTED_BUILD.pine
+  and should be re-injected and recompiled to restore the cloud script when convenient.
+  No data depends on this; the provenance anchor is the disk file.
