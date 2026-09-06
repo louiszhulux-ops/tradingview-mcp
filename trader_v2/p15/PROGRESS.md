@@ -177,3 +177,29 @@ See p15/PHASE15_HARD_STOP.md. Nothing repaired, nothing injected.
 - NO STRATEGY RUN HAS OCCURRED. Nothing injected into TradingView. The chart still
   carries the Phase 15 G1 build (pineVersion 142.0), to be replaced at the boundary.
 - Protocol: p16/PHASE16_PROTOCOL.md (committed BEFORE execution).
+
+## PHASE 16 APPROVED AND FROZEN -- 2026-09-06
+- Study owner approved the protocol and provenance setup on 2026-09-06.
+  Protocol was committed (3a5bf1c) BEFORE approval and before any execution.
+- Frozen and verified at approval time (all three MATCH):
+    P16 OOS artifact   5c21acfab1b0c832aaa562a0afc84c94e595da2318f2366dd153c1d08172b333
+    P15 exec baseline  2dafbafd5f6731e93c6fc4a2d55048bb32d5c0d75581ed7fffd877a0cf58efe6
+    canonical V53      7490766b6e3de062989a8e7f10939869cc6b679d253ce584f223064aa5797ef5
+- Accumulation window: 2026-08-31 00:00 UTC -> 2027-04-02 00:00 UTC (214 days).
+- STOPPING BOUNDARY IS THE CALENDAR DATE, NOT AN EVENT COUNT. The ~80-event figure
+  was only the design input used to derive the date; realized N will be whatever the
+  frozen strategy produces over the complete window. <40 alternative events ->
+  automatic INSUFFICIENT. Otherwise apply the pre-registered rule unmodified
+  (H0: p = p* = 0.1751, one-sided exact binomial, alpha 0.05, alternative p1 = 0.30).
+- STATUS: FORWARD ACCUMULATION. No strategy run has occurred. Nothing injected into
+  TradingView. The chart intentionally retains the Phase 15 G1 build (pineVersion
+  142.0) for the duration; it is replaced only at the boundary.
+- Standing prohibitions until 2027-04-02: no runs, no injection, no inspection of OOS
+  funnel/trades/P&L/wins/losses/event counts/performance, no estimation of expected
+  OOS results, no protocol or strategy changes, no date/instrument/direction/LTF/event
+  -definition changes, no interim reports, no early conclusions, no optimization.
+- Pre-written invalidation rule remains in force: any change to the P16 artifact SHA
+  during accumulation invalidates the period; a new 214-day period starts from the
+  change date. No carve-out.
+- At the boundary, execute p16/PHASE16_PROTOCOL.md section 9 in order, starting with
+  SHA re-verification and a full re-run of p16/verify_p16_oos.py.
