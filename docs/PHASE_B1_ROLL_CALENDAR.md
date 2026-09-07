@@ -1177,3 +1177,190 @@ B-2 task with no remaining unknowns**, not a blocker.
 | `bot/calendar/cme.py` | **not modified** |
 | Databento / provider adapter / aggregator | **not started** |
 | files changed | **1**: `docs/PHASE_B1_ROLL_CALENDAR.md` |
+
+---
+
+## B-2 — FROZEN ROLL CALENDAR + PHASE C DATASET EXPORT
+
+**Status: 🟡 PARTIAL / BLOCKED on one component.** The roll calendar is frozen and validated. The
+parent 5m dataset is exported and verified against the frozen run files. **The LTF (1m/3m) stream
+is BLOCKED and was not exported** — see B-2.E. Per the task's own rule, one unsatisfiable criterion
+means B-2 is reported BLOCKED rather than improvised around.
+
+### B-2.A Artifacts frozen
+
+| path | kind | rows | bytes | SHA-256 |
+|---|---|---|---|---|
+| `data/roll_calendar.json` | roll calendar | 122 rolls | 40,215 | `8d025df3fa600d1d3d8abf40811d2ecc12947f90892fed9fc997fd99b8edfe29` |
+| `data/phase_c/MGC1__5m.csv` | parent bars | 19,218 | 602,265 | `1c5c5ebaaa3fb740d7a388330ab5080a6a53445fd7d86205e424514131f0888f` |
+| `data/phase_c/MNQ1__5m.csv` | parent bars | 19,200 | 667,838 | `63e9d0ac33f29d2d27172ae0129d4ba57f10cd143b51baa8a87b720ac77ee665` |
+| `data/phase_c_manifest.json` | manifest | — | — | (records the three above) |
+| `bot/tests/test_roll_calendar.py` | validator | 24 tests | — | — |
+
+### B-2.B The roll calendar (B-2.1, B-2.2) — **FROZEN**
+
+`data/roll_calendar.json` carries **122 roll entries**: 88 for MGC (from 2010-12) and 34 for MNQ
+(from 2019-06), exactly the rows TradingView's `RollDatesCalculator` exposed in P-6. Nothing was
+reconstructed, extrapolated or inferred; the historical rows were captured during the P-6 session
+and are transcribed verbatim.
+
+Per-roll fields: `old_contract`, `new_contract`, `trade_date`, `roll_timestamp`,
+`roll_timestamp_utc`, `roll_timezone`, `status`. Instrument-level fields hold the values that are
+constant across every roll — `root`, `continuous_symbol`, `resolved_symbol`, `session`,
+`session_timezone`, `pointvalue`, `minmov`, `pricescale`, `mintick`, `contract_cycle`,
+`adjustment_mode`, `roll_count`.
+
+**One stated interpretation.** The brief listed `session` and `pointvalue` among the per-entry
+fields *and* forbade unnecessary duplication. Repeating two instrument constants across 122 rows is
+duplication, so they live at instrument level, where each roll inherits them unambiguously. This is
+recorded rather than silently applied.
+
+`status` is `historical` for rolls at or before the 2026-09-07 observation date and `scheduled` for
+the future switches TradingView already publishes (e.g. MNQ `MNQU2026 → MNQZ2026` on 2026-09-15).
+Both are equally *observed*; only their relation to today differs.
+
+**Determinism.** Serialised with `indent=2`, `ensure_ascii=False`, insertion-ordered keys, trailing
+newline, and no generation timestamp, hostname, path or random id. `test_deterministic_round_trip`
+re-serialises the parsed file and asserts byte equality.
+
+**Validation** — `bot/tests/test_roll_calendar.py`, 24 tests, all passing. It covers every check the
+brief listed, plus three that fell out of the data:
+- no duplicate roll boundary or trade date; chronological ordering; `old != new`
+- **contract chaining** — each roll's `new_contract` is the next roll's `old_contract`, unbroken
+  across all 122 rows
+- timestamps valid, and `roll_timestamp_utc` agrees with `roll_timestamp`
+- **every roll instant is exactly 17:00 America/Chicago** (asserted, not assumed)
+- the roll timestamp precedes its trade date by 1–4 days, the wider gaps being holiday/weekend rows
+- `contract_cycle` is **derived from the contracts actually present** and asserted equal to MGC
+  `GJMQZ` / MNQ `HMUZ` — so the cycle is a computed property of the evidence, not a hardcoded claim
+- pointvalue MGC 10 / MNQ 2; continuous symbols correct
+- **no contract is a `!` continuous alias** — every leg matches `^[A-Z]{2,4}[FGHJKMNQUVXZ]\d{4}$`
+- the three research-window rolls are present with their exact timestamps
+- **fold C contains no roll**
+
+### B-2.C The parent dataset (B-2.3) — **EXPORTED AND VERIFIED**
+
+Exported on the investigation layout `P2NtY6fg`. **The frozen chart `2d43Iesr` was not opened,
+attached to, or modified**; every evaluation carried the `location.href` abort guard from P-6.
+
+Fields are exactly the frozen V53 requirement — **`timestamp,high,low,close`**. Open and volume were
+deliberately excluded: V53's 5m engine never reads them, and including them would extend the
+dataset beyond what the research consumed.
+
+| | MGC1! | MNQ1! |
+|---|---|---|
+| rows (pre-FE) | **19,218** | **19,200** |
+| fold A | **10,386** | **10,368** |
+| fold B | **4,668** | **4,668** |
+| fold C | 4,164 | 4,164 |
+| post-FE rows | **0** | **0** |
+| span | 2026-05-24T22:00Z → 2026-08-30T23:55Z | same |
+
+**The fold counts and spans match the frozen run files exactly.** `MGC_L_3m_A` records
+`foldbars 10386` and `cov 2026-05-24 22:00 -> 2026-07-15 23:55`; `MNQ_L_3m_A` records
+`foldbars 10368` with the same span; every `_B` run records `foldbars 4668` and
+`cov 2026-07-16 00:00 -> 2026-08-07 20:55`. This is an independent reproduction, not a target that
+was fitted to.
+
+**Why the start date is not a chosen cutoff.** `requestMoreData()` paging stalled at
+**2026-05-24T22:00Z** for *both* instruments — that is TradingView's 5m history limit for these
+symbols. It is the same instant the frozen research saw. The window start was never a research
+decision; it is a platform boundary, and it has not moved.
+
+**The end boundary** is `FE = 1788134400` (2026-08-31T00:00:00Z), applied as `timestamp < FE`.
+`test_no_post_fe_data` asserts it on every row of both files.
+
+**Nothing was repaired.** No gap filling, no interpolation, no timestamp normalisation — timestamps
+are the raw unix seconds TradingView reports. No bar was added because TradingView can now supply
+it: everything from 2026-08-31 onward was dropped at export.
+
+### B-2.D Reproducibility (B-2.5)
+
+| parameter | value |
+|---|---|
+| requested symbols | `COMEX_MINI:MGC1!`, `CME_MINI:MNQ1!` |
+| resolved symbols | `COMEX_MINI_DL:MGC1!`, `CME_MINI_DL:MNQ1!` — **delayed feed**; non-`_DL` requests resolve to `_DL` on this account |
+| resolution | `5` |
+| `backAdjustment` | `false` |
+| `settlementAsClose` | `true` |
+| `sessionId` | `regular` |
+| timestamps | raw unix seconds, UTC, bar-open instant; no normalisation |
+| export mechanism | `model().mainSeries().bars()` read over CDP after `requestMoreData()` paging to the history limit |
+| layout | `B1 ROLL INVESTIGATION` (`P2NtY6fg`) — **not** `2d43Iesr` |
+| roll-calendar version | `data/roll_calendar.json` sha256 `8d025df3…` |
+
+No TradingView setting was changed to improve the data. `backAdjustment` was left at its platform
+default of `false`, which is what makes the exported bars the **raw** old-contract prices across a
+roll, matching what the research consumed.
+
+### B-2.E **BLOCKED: the LTF (1m/3m) stream cannot be exported**
+
+This is the pre-registered stop condition, and it applies to exactly this component.
+
+**What blocks it.** V53 obtains its LTF stream from
+`request.security_lower_tf(syminfo.tickerid, ltfStr, high/low/close/time)` — a **Pine-runtime**
+construct (`V53_ltf_sequence.pine:99-103`). The data has three properties that exist only inside
+that call:
+
+1. **The 100,000-value cap.** Every 1m run file reports exactly `LTFbars 100000`. The cap truncates
+   the *earliest* history, and where it bites depends on the run's end point.
+2. **Per-parent-bar grouping.** The call returns an array per chart bar. `MGC_L_1m_A` reports
+   `foldbars 10386 | w/LTF 9813` — **573 parent bars received an empty array**. Which 573 is part
+   of the information set, and it is not recoverable from a bar series.
+3. **Run-specific truncation points.** Fold-A 1m coverage starts `2026-05-27 02:15` for MGC and
+   `02:20` for MNQ; the 3m runs are untruncated (`w/LTF 10386` = `foldbars`), and fold B is
+   untruncated for both. The boundary differs per instrument, per LTF and per fold.
+
+**Why the workarounds are all forbidden or wrong.**
+
+- Running the Pine artifact would reproduce it exactly — **explicitly forbidden** ("do not rerun
+  Pine", "no Pine artifact loaded/compiled/executed").
+- Exporting the 1m/3m *chart* series is not the same object: it would carry no 100k truncation and
+  no parent grouping, and would hand fold A **more** LTF history than the research had — which the
+  brief forbids ("do not backfill missing LTF history", "do not add bars merely because TradingView
+  can now provide them").
+- Truncating a chart export at the recorded `cov` start and grouping it to parent bars would be
+  **implementing 1m/3m/5m aggregation** — forbidden in B-2 — and would be reconstruction from a
+  summary line, not reproduction of the stream.
+
+**Nothing was substituted.** No provider, no Databento, no reconstructed or interpolated LTF data.
+The Fold-A truncation is preserved by *not touching it*: the parent dataset is exported as observed,
+and the LTF boundary remains exactly as the frozen run files record it. Reproducing the truncation
+algorithm is B-3 work, as the brief states.
+
+### B-2.F Acceptance
+
+| criterion | status |
+|---|---|
+| canonical machine-readable roll calendar exists | ✅ `data/roll_calendar.json` |
+| calendar contains only evidenced TradingView roll information | ✅ 122 verbatim `RollDatesCalculator` rows |
+| calendar deterministic | ✅ byte-stable round trip asserted |
+| calendar version-controlled | ✅ committed |
+| calendar validator passes | ✅ 24/24 |
+| exact Phase C TradingView dataset exported | ⛔ **parent 5m only; LTF blocked (B-2.E)** |
+| dataset boundaries documented | ✅ B-2.C / manifest |
+| no post-FE data included | ✅ asserted per row, both files |
+| no Fold-A LTF truncation repaired | ✅ untouched |
+| no synthetic/backfilled bars | ✅ none |
+| dataset manifest exists | ✅ `data/phase_c_manifest.json` |
+| SHA-256 hashes recorded | ✅ |
+| frozen pre-existing hashes unchanged | ✅ all five re-verified |
+| dataset reproducible | ✅ fold counts and spans match the frozen runs independently |
+| Phase 16 untouched | ✅ |
+| V53 untouched | ✅ |
+| no provider/execution code changed | ✅ |
+| no Pine artifact loaded/compiled/executed | ✅ |
+| existing guards/tests pass | ✅ guards PASS, 299 bot tests, 43 analyser tests, `verify_p16_oos.py` PASS |
+
+**17 of 18 satisfied. One is not, so B-2 is reported BLOCKED on the LTF component.**
+
+### B-2.G UNKNOWN after B-2
+
+| # | unknown | note |
+|---|---|---|
+| U-5 | B-ADJ during the 13F/14/15 runs | **STRONGLY INFERRED off**, not upgraded |
+| U-7 | `_DL` vs non-`_DL` historical roll parity | **UNKNOWN** — the non-`_DL` series is unreachable |
+| U-9 | whether TradingView ever revised a roll rule retroactively | not exposed; the calendar is now frozen in-repo precisely so a later re-read cannot silently replace it |
+| U-12 | whether `settlementAsClose` affects the 5m/LTF bars V53 consumed | untested; recorded, not acted on |
+| U-13 | whether roll dates hold identically at intraday resolutions | the calendar was read on daily bars |
+| **U-14** | **the exact LTF stream the frozen research consumed** | **NEW.** Not exportable without running Pine (B-2.E). B-3 must reproduce the truncation algorithm rather than recover the data |
