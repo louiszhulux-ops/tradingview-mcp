@@ -772,3 +772,408 @@ mode needs the connector re-established rather than more backoff. That is U-11: 
 now on record and TradingView acting as the Phase C parity oracle, **oracle availability is itself a
 project risk**, and it is a second independent argument for exporting and hashing the research
 dataset promptly.
+
+---
+
+## P-6 / E-1′…E-7′ HISTORICAL ROLL-EVIDENCE INVESTIGATION
+
+**Authorised:** controlled read-only TradingView navigation — symbol, resolution, visible range,
+history requests, model inspection — **on a separate investigation layout only**.
+
+> **This section resolves the roll calendar.** §3.1 previously stated "no roll dates are asserted".
+> That is now superseded: the roll dates below are **observed**, by two independent methods that
+> agree exactly. §10.5's pessimistic reading of U-10 is also **withdrawn** — see E-4′.
+
+### P-6.0 Isolation — how the frozen chart was protected, and one thing that did happen
+
+| step | action | evidence |
+|---|---|---|
+| 1 | Recorded the frozen chart's state **before** anything: `CME_MINI_DL:MNQ1!`, resolution `5`, chartType `1`, studies `V53 LTF SEQUENCE` (`0f0OTQ`), `V8.3 XAU - Trend + Range (cost-hardened)` (`gNx1DZ`), `Volume` (`V8L5rU`) | `chart_get_state` |
+| 2 | Created a **new layout in a new tab**: `B1 ROLL INVESTIGATION`, chart id **`P2NtY6fg`** | `tab_new{layout:"new"}` → `{chart_id:"P2NtY6fg"}` |
+| 3 | Confirmed the CDP target re-pinned to `P2NtY6fg` | `tv_health_check` → `target_url: .../chart/P2NtY6fg/` |
+| 4 | **Every** subsequent evaluation opened with a hard guard: `if (location.href.indexOf('2d43Iesr') !== -1) return {ABORT:1}` | present in every `ui_evaluate` below; it never fired |
+| 5 | All symbol/resolution/property writes ran against `P2NtY6fg`, each returning its own href | e.g. `set backAdjustment=true on https://www.tradingview.com/chart/P2NtY6fg/` |
+
+**What did happen, stated plainly.** Creating the new layout **navigated the tab that was showing
+`2d43Iesr` away from it** — after `tab_new`, `tab_list` no longer showed a `2d43Iesr` target. This
+was not intended and is worth recording rather than glossing. It is a *navigation*, not an edit: no
+mutating call was ever issued while the bridge was pinned to that chart.
+
+**It was then verified recoverable and unchanged.** `2d43Iesr` was reopened in its own tab and read
+back:
+
+| property | at session start | after the investigation |
+|---|---|---|
+| symbol | `CME_MINI_DL:MNQ1!` | `CME_MINI_DL:MNQ1!` |
+| resolution / `interval` | `5` | `5` |
+| chartType | `1` | `1` |
+| studies (name + entity id) | `0f0OTQ`, `gNx1DZ`, `V8L5rU` | `0f0OTQ`, `gNx1DZ`, `V8L5rU` — **identical ids** |
+| `backAdjustment` | `false` | `false` |
+| `settlementAsClose` | `true` | `true` |
+| `sessionId` | `regular` | `regular` |
+
+**VERIFIED: the frozen chart is intact, down to identical study entity IDs.** No Pine artifact was
+loaded, compiled, executed or read on it; no study added or removed; no setting changed.
+
+**A caution for the next session.** The bridge's fallback target selector picks the *first*
+`tradingview.com/chart` target it finds, which can be `2d43Iesr`. If the MCP server restarts, the
+pin is lost and the next call may land on the frozen chart. The `location.href` guard used
+throughout this section is the mitigation and should be kept in any future navigation work.
+
+### E-1′ — Historical switch-marker accessibility
+
+**Method.** On `P2NtY6fg`: set resolution `D` (loading 300 daily bars, 2025-06-30 → 2026-09-06,
+covering the whole research window), then enumerate the chart model's data sources rather than
+walking the object graph blindly.
+
+**Exact object inspected.**
+`window.TradingViewApi._activeChartWidgetWV.value()._chartWidget.model().dataSources()`
+
+**Observation.** The daily chart carries a source list that includes two futures-specific entries
+that the 5m chart's property flags only hinted at:
+
+```
+cd|Crosshair            Is|MNQ1! · CME, 1D      O|Ideas on chart       o|Vol (false)
+oe|Dividends            ae|Splits               le|Earnings
+B|RollDatesCalculator (now)      H|FuturesContractExpiration
+X|LatestUpdatesSource   te|Chart Events
+```
+
+**`RollDatesCalculator` is the object §10.3 could not find.** Its output lives in `_data`, a
+standard bar-series container whose rows are:
+
+```
+[ unix_seconds , old_contract_YYYYMM , new_contract_YYYYMM , trade_date_YYYYMMDD , …nulls… , 0 ]
+```
+
+**Evidence.** `src._data.each(...)` returned **34 rows for MNQ** (2019-06 → 2027-09) and **88 rows
+for MGC** (2010-12 → 2028-03). Raw sample, verbatim:
+
+```
+-1000123|1560808800|201906|201909|20190618
+       241|1781474400|202606|202609|20260615
+       304|1789423200|202609|202612|20260915
+```
+
+**Status: VERIFIED.** Switch markers are machine-readable, exposed as a first-class chart data
+source, and available for the **entire** history — not merely the visible window. §10.3's R-4
+("not reachable at depth 5") was correct only because the 5m chart's 20-day range and the object-graph
+walk both missed a source that is enumerable directly.
+
+**Implication for B-1.** This is the primary input criteria 1–3 were blocked on.
+
+### E-2′ — MGC historical roll evidence
+
+**Method.** Set symbol to `COMEX_MINI:MGC1!` on `P2NtY6fg`; re-read `symbolInfo()` and the
+`RollDatesCalculator`.
+
+**Exact objects inspected.** `mainSeries().symbolInfo()`; `RollDatesCalculator._data` (88 rows).
+
+**Observation — MGC symbol record (the §10.4 gap, now closed):**
+
+| field | value | note |
+|---|---|---|
+| `full_name` / `pro_name` | `COMEX_MINI_DL:MGC1!` / `COMEX_MINI:MGC1!` | |
+| `root` | `MGC` | |
+| `front_contract` | **`MGCZ2026`** | |
+| **`pointvalue`** | **`10`** | **E-5′ — see below** |
+| `minmov` / `pricescale` | `1` / `10` ⇒ **mintick 0.1** | |
+| **`session`** | **`1800-1700`** | |
+| `timezone` | `America/New_York` | |
+| `has_backadjustment` / `allowed_adjustment` | `true` / `none` | as MNQ |
+| `backAdjustment` / `settlementAsClose` | `false` / `true` | as MNQ |
+
+**§10.4's inference is now VERIFIED.** MGC's session is `1800-1700` **America/New_York**, which is
+the *same instants* as MNQ's `1700-1600` **America/Chicago**. The two instruments share one
+trade-date boundary, and `bot/calendar/cme.py`'s single 17:00-CT roll instant is correct for both.
+This was INFERRED in §10.4; it is now observed.
+
+**Observation — MGC roll calendar (rolls from 2025-01, trade dates):**
+
+| effective (UTC) | effective (CT) | trade date | from | to |
+|---|---|---|---|---|
+| 2025-01-29 23:00Z | 2025-01-29 17:00 CST | 2025-01-30 | `MGCG2025` | `MGCJ2025` |
+| 2025-03-27 22:00Z | 2025-03-27 17:00 CDT | 2025-03-28 | `MGCJ2025` | `MGCM2025` |
+| 2025-05-28 22:00Z | 2025-05-28 17:00 CDT | 2025-05-29 | `MGCM2025` | `MGCQ2025` |
+| 2025-07-29 22:00Z | 2025-07-29 17:00 CDT | 2025-07-30 | `MGCQ2025` | `MGCZ2025` |
+| 2025-11-25 23:00Z | 2025-11-25 17:00 CST | 2025-11-26 | `MGCZ2025` | `MGCG2026` |
+| 2026-01-28 23:00Z | 2026-01-28 17:00 CST | 2026-01-29 | `MGCG2026` | `MGCJ2026` |
+| 2026-03-29 22:00Z | 2026-03-29 17:00 CDT | 2026-03-30 | `MGCJ2026` | `MGCM2026` |
+| **2026-05-27 22:00Z** | **2026-05-27 17:00 CDT** | **2026-05-28** | **`MGCM2026`** | **`MGCQ2026`** |
+| **2026-07-29 22:00Z** | **2026-07-29 17:00 CDT** | **2026-07-30** | **`MGCQ2026`** | **`MGCZ2026`** |
+| 2026-11-25 23:00Z | 2026-11-25 17:00 CST | 2026-11-27 | `MGCZ2026` | `MGCG2027` |
+
+**Two structural findings.**
+
+1. **MGC's continuous cycle is G, J, M, Q, Z — five rolls a year, and it SKIPS V (October).**
+   Both 2025 and 2026 go `Q → Z` directly. §3.2 listed `MGCV2026` as a candidate front contract;
+   **it is never the front month of `MGC1!`**, even though it is a listed contract. That correction
+   matters: a provider rule that includes October would not reproduce TradingView's series.
+2. **The last row is a holiday cross-check.** `2026-11-25 17:00 CST` carries trade date
+   **`20261127`**, not `20261126`, because 2026-11-26 is Thanksgiving — and `20261127` appears in
+   the symbol record's own `corrections` string (§10.2d). The field is a genuine exchange trade
+   date, holiday-aware, not a naive calendar offset. **This independently validates the semantics
+   of the whole table.**
+
+**Status: VERIFIED.** Fold A is covered, and so is the entire research window.
+
+### E-3′ — MNQ historical roll evidence
+
+**Method.** As E-2′, on `CME_MINI:MNQ1!`.
+
+**Observation — MNQ roll calendar (rolls from 2025-03, trade dates):**
+
+| effective (UTC) | effective (CT) | trade date | from | to |
+|---|---|---|---|---|
+| 2025-03-17 22:00Z | 2025-03-17 17:00 CDT | 2025-03-18 | `MNQH2025` | `MNQM2025` |
+| 2025-06-15 22:00Z | 2025-06-15 17:00 CDT | 2025-06-16 | `MNQM2025` | `MNQU2025` |
+| 2025-09-15 22:00Z | 2025-09-15 17:00 CDT | 2025-09-16 | `MNQU2025` | `MNQZ2025` |
+| 2025-12-15 23:00Z | 2025-12-15 17:00 CST | 2025-12-16 | `MNQZ2025` | `MNQH2026` |
+| 2026-03-16 22:00Z | 2026-03-16 17:00 CDT | 2026-03-17 | `MNQH2026` | `MNQM2026` |
+| **2026-06-14 22:00Z** | **2026-06-14 17:00 CDT** | **2026-06-15** | **`MNQM2026`** | **`MNQU2026`** |
+| 2026-09-14 22:00Z | 2026-09-14 17:00 CDT | 2026-09-15 | `MNQU2026` | `MNQZ2026` |
+| 2026-12-14 23:00Z | 2026-12-14 17:00 CST | 2026-12-15 | `MNQZ2026` | `MNQH2027` |
+
+**MNQ's cycle is H, M, U, Z — quarterly, no skips.**
+
+**The instruction not to reason from `front_contract` was correct, and the table honours it.** The
+2026-09-15 row is *in the future* and says `MNQU2026 → MNQZ2026`, which is exactly why
+`front_contract` reads `MNQU2026` today (2026-09-07). That is a **consistency check on the table**,
+not the source of the historical date. The historical M→U date comes from the table and from the
+price identity in E-3′b — never from the current front contract.
+
+#### E-3′b — Independent confirmation by bar-level price identity
+
+This is the `continuous → old contract → new contract → exact switch date` chain, closed
+observationally. Daily bars, `backAdjustment = false`. Bar timestamps are session-open instants
+(22:00Z = 17:00 CT), so the bar stamped `2026-05-27T22:00` **is** trade date 2026-05-28.
+
+**MGC, around the predicted 2026-05-28 switch:**
+
+| bar (UTC) | `MGC1!` OHLC | matches |
+|---|---|---|
+| 2026-05-24 22:00 | `O4530.2 H4583.2 L4480.1 C4502.3` | **`MGCM2026` exactly** |
+| 2026-05-26 22:00 | `O4504 H4527.9 L4398.4 C4448.4` | **`MGCM2026` exactly** |
+| **2026-05-27 22:00** | `O4487.7 H4547.4 L4395.8 C4532.4` | **`MGCQ2026` exactly** ← switch |
+| 2026-05-28 22:00 | `O4527.7 H4627.3 L4519.1 C4593` | **`MGCQ2026` exactly** |
+
+For contrast, `MGCM2026`'s own 2026-05-27 bar is `O4453.1 H4511.5 L4364 C4499.3` — the two
+contracts differ by roughly 34 points, so the match is unambiguous.
+
+**MNQ, around the predicted 2026-06-15 switch:**
+
+| bar (UTC) | `MNQ1!` OHLC | `MNQM2026` | `MNQU2026` |
+|---|---|---|---|
+| 2026-06-11 22:00 | `O29450 H29759.25 L29231.25 C29662` | **identical** | differs (`C29954.75`) |
+| **2026-06-14 22:00** | `O30100 H30918.5 L30100 C30864.25` | differs (`O29826.25 C30559.25`) | **identical** ← switch |
+| 2026-06-17 22:00 | `O30146 H30783.25 L30092.25 C30719.75` | differs | **identical** |
+
+**Status: VERIFIED, by two independent methods that agree exactly.** The `RollDatesCalculator`
+timestamps and the bar-level price identity give the same switch dates for both instruments. Note
+also that the pre-roll continuous bars equal the **old contract's raw prices** — no offset — which is
+a behavioural confirmation that back-adjustment is off (see E-7′).
+
+#### Rolls inside the frozen research window
+
+Research window 2026-05-24 → 2026-08-30; folds per the frozen definitions.
+
+| fold | span | rolls inside |
+|---|---|---|
+| **A** | 2026-05-24 → 2026-07-15 | **MGC `MGCM2026 → MGCQ2026` on 2026-05-28**; **MNQ `MNQM2026 → MNQU2026` on 2026-06-15** |
+| **B** | 2026-07-16 → 2026-08-07 | **MGC `MGCQ2026 → MGCZ2026` on 2026-07-30** |
+| **C** | 2026-08-09 → 2026-08-30 | **none** |
+
+**I-3 is now VERIFIED** — rolls did occur inside the research window; there are **three** of them,
+and the first lands only four days after Fold A opens. Fold C is roll-free.
+
+### E-4′ — Direct historical-contract resolution
+
+**Method.** Set the symbol directly, by name, to contracts that returned **zero results** from
+search in §10.5.
+
+**Observation.**
+
+| symbol | resolved? | resolved name | `expiration` | `typespecs` | daily bars |
+|---|---|---|---|---|---|
+| `CME_MINI:MNQM2026` | **yes** | `CME_MINI_DL:MNQM2026` | `20260618` | `["micro","expired","dynamic"]` | 300, 2025-04-09 → **2026-06-17** |
+| `COMEX_MINI:MGCQ2026` | **yes** | `COMEX_MINI_DL:MGCQ2026` | `20260827` | `["micro","expired","dynamic"]` | 300, 2025-06-17 → **2026-08-26** |
+| `COMEX_MINI:MGCM2026` | **yes** | `COMEX_MINI_DL:MGCM2026` | `20260626` | — | to **2026-06-25** |
+| `CME_MINI:MNQU2026` | **yes** | `CME_MINI_DL:MNQU2026` | `20260918` | `["micro","dynamic"]` (no `expired`) | live |
+
+**Status: VERIFIED — and §10.5's U-10 conclusion is WITHDRAWN.** Expired contracts resolve fully,
+carry complete history, and expose an **`expiration`** field that the continuous symbol does not.
+Search-catalog absence did **not** mean symbol absence. §10.5 graded this correctly as UNKNOWN
+rather than asserting impossibility; that caution was warranted, and the pessimistic framing
+("the fallback is disappearing") was wrong.
+
+**Implication for B-1.** The observational fallback is fully available, which is why E-3′b could be
+run at all — it is now corroboration rather than fallback.
+
+### E-5′ — MGC pointvalue
+
+**Method.** Read `mainSeries().symbolInfo().pointvalue` with `MGC1!` actually loaded — not from the
+scanner projection that returned `null` in §10.4, and not from a fixture constant.
+
+**Observation.** **`pointvalue = 10`** for `COMEX_MINI_DL:MGC1!`; also `10` on the concrete
+`MGCQ2026` and `MGCM2026`. MNQ remains `2`.
+
+**Status: VERIFIED.** This matches `POINT_VALUE = {"MGC1!": Decimal("10"), "MNQ1!": Decimal("2")}`
+in `bot/tools/extract_golden.py`. The fixture constants are now corroborated by the platform for
+**both** instruments; **B1's U-4 is fully resolved.**
+
+### E-6′ — `_DL` parity
+
+**Method.** Request the non-delayed record explicitly and compare.
+
+**Observation.** **Every** non-`_DL` request silently resolved to the `_DL` record:
+
+| requested | resolved (`full_name`) |
+|---|---|
+| `CME_MINI:MNQ1!` | `CME_MINI_DL:MNQ1!` |
+| `COMEX_MINI:MGC1!` | `COMEX_MINI_DL:MGC1!` |
+| `CME_MINI:MNQM2026` | `CME_MINI_DL:MNQM2026` |
+| `COMEX_MINI:MGCQ2026` | `COMEX_MINI_DL:MGCQ2026` |
+
+`pro_name` keeps the non-`_DL` name, `pro_perm` is `cme_mini`, `delay` is `600`. The account lacks
+the real-time entitlement, so the platform substitutes the delayed record.
+
+**Status: split, deliberately.**
+
+- **VERIFIED:** this account **cannot obtain a distinct non-`_DL` series at all**. The two views
+  cannot be compared, because only one of them is reachable.
+- **UNKNOWN — and it stays UNKNOWN:** whether `_DL` and non-`_DL` have identical *historical* roll
+  behaviour. It was never observed, and identical underlying records do **not** license the
+  inference. §10.3's "STRONGLY INFERRED identical" was over-graded and is **downgraded to UNKNOWN**.
+
+**Implication for U-8, which is the point.** If the account can only ever resolve `_DL`, the frozen
+13F/14/15 runs necessarily ran on `_DL`, whatever prefix was typed — `syminfo.ticker` stripped it,
+which is why the run files are silent. **U-8 is therefore STRONGLY INFERRED as `_DL`**, resting on a
+verified entitlement constraint rather than on a guess. It is not VERIFIED, because entitlements can
+change and no record of the entitlement at run time exists.
+
+### E-7′ — Adjustment / historical-series evidence
+
+**Method.** On `P2NtY6fg` only, with `MNQ1!` daily: read bars, set
+`mainSeries().properties().childs().backAdjustment.setValue(true)`, re-read the same bars, restore
+`false`, re-read again to confirm restoration. **The frozen chart's setting was never touched.**
+
+**Observation.**
+
+| bar (UTC) | `backAdjustment = false` | `backAdjustment = true` | delta |
+|---|---|---|---|
+| 2026-06-09 22:00 | `O29102 … C28554` | `O29394.75 … C28846.75` | **+292.75** |
+| 2026-06-10 22:00 | `O28458 … C29464.75` | `O28750.75 … C29757.5` | **+292.75** |
+| 2026-06-11 22:00 | `O29450 … C29662` | `O29742.75 … C29954.75` | **+292.75** |
+| **2026-06-14 22:00** (roll) | `O30100 H30918.5 L30100 C30864.25` | **identical** | **0** |
+| 2026-06-17 22:00 | `O30146 … C30719.75` | **identical** | **0** |
+
+**Four things are now VERIFIED rather than documented:**
+
+1. Back-adjustment is **additive**, not multiplicative — a constant **+292.75** across O, H, L and C.
+2. The offset is applied to **pre-roll** bars only; post-roll bars are untouched.
+3. The offset equals the **contract spread at the switch**: `MNQU2026` close 29954.75 −
+   `MNQM2026` close 29662 on 2026-06-11 = **292.75** exactly. V-6's stated rule is confirmed
+   empirically.
+4. With `backAdjustment = false`, the continuous bars equal the **old contract's raw prices**
+   (E-3′b). **The series the research consumed is raw, with roll gaps intact.**
+
+**Adjustment state is per-chart and persisted.** It lives in `mainSeries().properties()`, part of
+the saved layout — a **brand-new** layout (`P2NtY6fg`, created empty in this session) also defaults
+to `backAdjustment: false`, `settlementAsClose: true`. That the frozen chart carries the same values
+is therefore the platform default, not a deliberate historical toggle.
+
+**Restoration verified, not assumed.** After restoring, `backAdjustment = false` and the
+2026-06-11 close read back as **29662** — the raw value.
+
+**Status on U-5: STRONGLY INFERRED — deliberately NOT upgraded to VERIFIED.** Three independent
+observations now support "the frozen research ran unadjusted": the platform default, the frozen
+chart's current state, and the new layout's default. But **the historical state of the property
+during the 13F/14/15 runs is not exposed anywhere**, and no amount of present-tense evidence can
+establish a past setting. It stays STRONGLY INFERRED.
+
+**No evidence was found that adjustment state differs by symbol** — MGC and MNQ both read `false`
+with `has_backadjustment: true` and `allowed_adjustment: "none"`.
+
+### P-6.1 Newly VERIFIED facts
+
+1. `RollDatesCalculator` is an enumerable chart data source exposing the **complete** roll history
+   (MNQ 34 rows from 2019-06; MGC 88 rows from 2010-12).
+2. **MNQ roll `MNQM2026 → MNQU2026`, trade date 2026-06-15**, effective 2026-06-14 22:00Z.
+3. **MGC roll `MGCM2026 → MGCQ2026`, trade date 2026-05-28**, effective 2026-05-27 22:00Z.
+4. **MGC roll `MGCQ2026 → MGCZ2026`, trade date 2026-07-30**, effective 2026-07-29 22:00Z.
+5. Both confirmed independently by **bar-level price identity** against the concrete contracts.
+6. **Every** roll instant is exactly **17:00 America/Chicago** — a third independent confirmation
+   of U1's trade-date boundary.
+7. MGC continuous cycle **G, J, M, Q, Z** — **October (V) is skipped**. MNQ cycle **H, M, U, Z**.
+8. **MGC `pointvalue = 10`**; MNQ `pointvalue = 2`. B1's U-4 fully resolved.
+9. MGC `session = 1800-1700`, `timezone = America/New_York` — the same instants as MNQ's
+   `1700-1600` America/Chicago.
+10. MGC `minmov/pricescale = 1/10` ⇒ **mintick 0.1**; MNQ `25/100` ⇒ **0.25**.
+11. Expired contracts **resolve directly** with full history and expose an `expiration` field
+    (`MNQM2026` 20260618, `MGCM2026` 20260626, `MGCQ2026` 20260827, `MNQU2026` 20260918).
+12. Back-adjustment is **additive**, pre-roll only, offset = contract spread at the switch
+    (**+292.75** for the MNQ M→U roll).
+13. `backAdjustment: false` and `settlementAsClose: true` are **platform defaults** on a
+    brand-new layout.
+14. This account cannot resolve any non-`_DL` record; all requests fall back to `_DL`.
+15. Fold C (2026-08-09 → 2026-08-30) is **roll-free**.
+16. The roll table's trade dates are **holiday-aware** (the 2026-11-27 Thanksgiving row agrees with
+    the symbol record's own `corrections` string).
+
+### P-6.2 Remaining UNKNOWNs
+
+| # | unknown | why it stays unknown |
+|---|---|---|
+| U-1 / U-2 | the roll **rule** (the N in "N days before expiry") | never needed now — the observed calendar supersedes it. Deriving N from 122 observed rolls would be *inference from* the answer, not evidence, and is not attempted here |
+| U-5 | B-ADJ **during** the 13F/14/15 runs | historical property state is not exposed. **STRONGLY INFERRED off** |
+| U-6 | calendar vs business days, holiday convention **of the rule** | moot for the calendar; the observed dates are holiday-aware |
+| U-7 | `_DL` vs non-`_DL` historical roll parity | **UNKNOWN — downgraded from §10.3.** The non-`_DL` series is unreachable, so it cannot be observed |
+| U-8 | prefix used by the frozen runs | **STRONGLY INFERRED `_DL`** via the entitlement constraint (E-6′); not verifiable |
+| U-9 | whether TradingView ever revised the rule retroactively | not exposed. The calendar should be **frozen into the repository** rather than re-read later |
+| U-12 | whether `settlementAsClose` affects the 5m/LTF bars V53 consumed | not tested — it needs an intraday-vs-daily close comparison, which is E-7 in §10.7 and was not part of P-6 |
+| U-13 | **NEW** — whether TradingView's roll dates are identical on the `1!` series at **intraday** resolutions | the entire investigation ran on daily bars. The roll instant is a session boundary, so agreement is expected, but it was not observed |
+
+### P-6.3 Updated B-1 acceptance matrix
+
+| # | criterion | after P-1…P-5 | **after P-6** |
+|---|---|---|---|
+| 1 | MGC roll calendar frozen | ⛔ BLOCKED | ✅ **DONE** — observed, dual-method, holiday-aware |
+| 2 | MNQ roll calendar frozen | ⛔ BLOCKED | ✅ **DONE** — observed, dual-method |
+| 3 | Every relevant bar resolves to a concrete contract | ⛔ BLOCKED | ✅ **DONE** — the tables map every bar of the research window to a named contract |
+| 4 | Adjustment semantics documented | ✅ DONE | ✅ **DONE** — now demonstrated empirically (additive, +292.75) |
+| 5 | Unresolved assumptions identified | ✅ DONE | ✅ **DONE** — U-13 added; U-7 downgraded; U-10 withdrawn |
+| 6 | No fabricated roll dates | ✅ DONE | ✅ **DONE** — every date observed; no CME expiry substituted anywhere |
+| 7 | Calendar committed to the repository | ⛔ BLOCKED | 🟡 **PARTIAL** — the calendar is committed **as this document**; a machine-readable artifact is B-2 work and is deliberately not created here |
+| 8 | Calendar deterministic / version-controlled | 🟡 schema only | 🟡 **PARTIAL** — same reason as 7 |
+| 9 | Phase 16 untouched | ✅ DONE | ✅ **DONE** — hashes re-verified |
+| 10 | Repository state audited | ✅ DONE | ✅ **DONE** |
+| 11 | Semantics graded | ✅ DONE | ✅ **DONE** |
+| 12 | Contract-mapping invariant defined | ✅ DONE | ✅ **DONE** |
+| 13 | Required data pull specified | ✅ DONE | ✅ **DONE** — executed |
+
+**11 of 13 complete, 2 partial, 0 blocked** (was 8 / 1 / 4).
+
+**B-1's substantive question is answered: the roll calendar exists, is observed, and is recorded.**
+Criteria 7 and 8 remain partial for one reason only — writing the machine-readable calendar file is
+implementation, and this task's scope forbids creating implementation files. That is a **one-file
+B-2 task with no remaining unknowns**, not a blocker.
+
+### P-6.4 Verification of this investigation
+
+| check | result |
+|---|---|
+| investigation layout | `B1 ROLL INVESTIGATION`, chart `P2NtY6fg`, created this session |
+| frozen chart `2d43Iesr` | **navigated away from by `tab_new`, reopened, and verified byte-for-byte unchanged** — symbol, resolution, chartType, all three study entity IDs, `backAdjustment`, `settlementAsClose`, `sessionId` (P-6.0) |
+| mutating call on the frozen chart | **none** — every evaluation carried an abort guard on `2d43Iesr`; it never fired |
+| Pine artifact loaded / compiled / executed / read | **none** — no `pine_*` tool invoked, no `pine_*` schema loaded |
+| studies added or removed | **none**, on either chart |
+| `backAdjustment` toggled | **on `P2NtY6fg` only**; restored to `false` and **re-read to confirm** |
+| post-FE data | daily bars for 2026-09-01…09-07 were necessarily present in loaded ranges. **Nothing post-FE was collected, stored, analysed, or used**; every quoted bar is pre-FE. No strategy evaluation or OOS analysis was performed |
+| roll date asserted without evidence | **none** — every date is dual-sourced |
+| CME expiry substituted for a roll date | **no**. `expiration` values are recorded in E-4′ as metadata only and are **not** used to derive any roll date |
+| Phase 16 artifacts | unchanged — `V53_P16_OOS_BUILD.pine` `5c21acfa…`, `PHASE16_PROTOCOL.md` `c5b6c853…`, `p16_analyze.py` `588eb9d0…` |
+| V53 artifacts | unchanged — `V53_ltf_sequence.pine` `7490766b…`, `V53_EXECUTED_BUILD.pine` `2dafbafd…` |
+| strategy / execution / data-architecture code | **not modified** |
+| `bot/calendar/cme.py` | **not modified** |
+| Databento / provider adapter / aggregator | **not started** |
+| files changed | **1**: `docs/PHASE_B1_ROLL_CALENDAR.md` |
