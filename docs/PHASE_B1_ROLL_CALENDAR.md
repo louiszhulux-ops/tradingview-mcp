@@ -408,3 +408,219 @@ Two points worth weighing before B-2:
    roll calendar. Phase C would then have to scope Gate 1 parity to a **roll-free sub-window**,
    with the divergence recorded — a smaller Gate 1, but an honest one. That fallback should be
    decided deliberately, not drifted into.
+
+---
+
+## 10. P-1…P-5 READ-ONLY TRADINGVIEW INVESTIGATION
+
+**Authorised:** read-only chart-metadata pull, P-1 through P-5, scoped to exclude loading,
+compiling or running any Pine artifact.
+
+### 10.0 Outcome: ⛔ **BLOCKED ON INFRASTRUCTURE. No TradingView call succeeded.**
+
+**No roll date is asserted. No adjustment mode is asserted. Nothing was inferred to fill the gap.**
+
+The four blocked B-1 criteria (§7 rows 1, 2, 3, 7) remain blocked, for the same reason as before
+and with no new evidence either way. What changed is only that the *route* to the evidence has now
+been tried and has failed for a reason that is external to this repository.
+
+#### The failure
+
+Every `mcp__f__*` call returned Cloudflare **HTTP 502 `origin_bad_gateway`**, zone
+`api.anthropic.com`. **VERIFIED:** the failing origin is the **MCP relay**, not TradingView. The
+error body names the zone explicitly, and no request reached TradingView Desktop or the CDP bridge
+on port 9222. This is not a TradingView outage, a symbol-permission problem, or a chart-state
+problem, and it says nothing about whether the data sought by P-1…P-5 exists.
+
+**Retry log — 9 attempts, 2 distinct tools, ~19 minutes elapsed, 2026-09-07 UTC:**
+
+| # | time | wait before | tool | ray id | result |
+|---|---|---|---|---|---|
+| 1 | 05:35:21 | — | `tv_health_check` | `a373597be9aa72e5` | 502 `origin_bad_gateway` |
+| 2 | 05:35:40 | 19s | `tv_health_check` | `a37359f1cf7e9991` | 502 |
+| 3 | 05:36:03 | 23s | `tv_health_check` | `a3735a83a8ee2234` | 502 |
+| 4 | 05:36:43 | 40s | `tv_health_check` | `a3735b7d9c6d98b8` | 502 |
+| 5 | 05:39:57 | 194s | `tv_health_check` | `a37360386c02866c` | 502 |
+| 6 | 05:41:19 | 82s | `tv_health_check` | `a373623bec60dc1f` | 502 |
+| 7 | 05:46:25 | 306s | `tv_health_check` | `a37369b52df83457` | 502 |
+| 8 | 05:46:30 | 5s | **`symbol_search`** | `a37369d22a02c0f3` | 502 — *different tool, identical failure* |
+| 9 | 05:54:23 | 473s | `tv_health_check` | `a373755da866b002` | 502 |
+
+Attempt 8 is the informative one: a **different** read-only tool fails identically and immediately.
+**VERIFIED:** the failure is relay-wide at the transport layer, not specific to `tv_health_check`
+and not a property of any particular chart operation.
+
+Backoff followed the gateway's own `retry_after: 60` guidance and then escalated. The failure was
+stationary — identical `error_name`, identical zone, no degradation and no partial success.
+
+**Precedent.** `trader_v2/RELAY_OUTAGE.md` records the same failure signature on 2026-09-05
+(18:05–18:55, 18 attempts), where it degraded from 502 to `MCP server "f" is not connected` and
+then to a hard 404 on the session's MCP route. That outage was resolved by re-establishing the
+connector on the user's side, not by further waiting. `trader_v2/FREQUENCY_REPORT.md:94` records a
+third instance. **INFERRED (moderate confidence):** this is a recurring environmental condition of
+this session type, not a one-off.
+
+### 10.1 Exact symbols targeted
+
+These are the symbols the pull was to address. **None of them was loaded, queried or resolved** —
+this table records intent and the basis for it, not observation.
+
+| role | symbol | status | basis |
+|---|---|---|---|
+| continuous, gold | `MGC1!` | **not queried** | the ticker recorded by every frozen run file (§1.1) |
+| continuous, Nasdaq | `MNQ1!` | **not queried** | as above |
+| prefix candidate A | `COMEX_MINI:MGC1!` / `CME_MINI:MNQ1!` | **not queried** | non-delayed records; used by earlier generations (§1.3) |
+| prefix candidate B | `COMEX_MINI_DL:MGC1!` / `CME_MINI_DL:MNQ1!` | **not queried** | pinned by `p16/PHASE16_PROTOCOL.md:107`, **for Phase 16 only** |
+| concrete, gold | `COMEX_MINI:MGCM2026`, `MGCQ2026`, `MGCV2026` | **not queried**, **existence unverified** | §3.2 candidate universe |
+| concrete, Nasdaq | `CME_MINI:MNQM2026`, `MNQU2026` | **not queried**, **existence unverified** | §3.2 candidate universe |
+
+**UNKNOWN:** whether the concrete-contract symbols above exist on TradingView at all, and whether
+this account is entitled to them. The P-5 fallback depends entirely on that, and it was not
+established. It must not be assumed.
+
+**U-8 is unchanged and remains UNKNOWN.** The prefix actually used by the frozen 13F/14/15 runs
+is still not determined. A fresh local re-check during this attempt confirms the negative result
+already recorded in §1.1: a regex sweep for `(COMEX|CME|NYMEX|CBOT)(_MINI)?(_DL)?:` across every
+file in `trader_v2/v53_runs/`, `trader_v2/v53_runs_foldc/` and `trader_v2/p15/runs/` returns **zero
+matches**. `syminfo.ticker` strips the prefix, so the runs cannot testify to it. **This is a
+permanent property of the frozen artifacts, not a gap that P-4 could have closed retroactively** —
+P-4 could only have shown whether the two records *roll identically*, which would make the
+question moot; it could never have shown which one was used.
+
+### 10.2 Metadata discovered
+
+**None.** Zero bytes of TradingView chart metadata were retrieved.
+
+What is recorded below is the **capability inventory**, established by reading this repository's
+own bridge source — it is VERIFIED about the bridge, and says nothing about TradingView's data.
+
+| # | finding | grade | evidence |
+|---|---|---|---|
+| M-1 | `symbolInfo()` returns exactly 9 fields — `symbol`, `full_name`, `exchange`, `description`, `type`, `pro_name`, `typespecs`, `resolution`, `chart_type` | **VERIFIED** | `src/core/chart.js:257` |
+| M-2 | None of those 9 fields carries expiry, root, contract month, or adjustment state | **VERIFIED** | same |
+| M-3 | Therefore `symbol_info` **cannot** answer P-2, P-3 or P-4 as it stands; `ui_evaluate` against the chart model is the only available route | **VERIFIED** (follows from M-1/M-2 and the tool list) | — |
+| M-4 | `chart.symbolExt()` is the underlying object `symbolInfo()` projects from, so it may carry more fields than the 9 exposed | **INFERRED** | `symbolInfo()` reads `chart.symbolExt()` and discards the remainder; whether a richer field set exists there is **UNKNOWN** until dumped |
+| M-5 | History paging exists (`requestMoreData(1000)`, `src/core/chart.js:185`) and `getOhlcv` is capped at 500 bars (`MAX_OHLCV_BARS`, `src/core/data.js`) | **VERIFIED** | cited files |
+| M-6 | `getOhlcv` includes the **forming** bar (`end = bars.lastIndex()`, inclusive loop, `src/core/data.js:137-155`) | **VERIFIED** | cited file; already logged in the production-readiness audit |
+
+M-6 matters for P-5: a daily-bar export used for the segment-offset signature must **drop the last
+bar**, or a partial bar will be differenced against a complete one and manufacture a false offset.
+That is a design note for the next attempt, not a finding about rolls.
+
+### 10.3 Roll evidence (P-1, P-4)
+
+**NONE. UNKNOWN. No roll date is asserted for either instrument.**
+
+- No chart-model read was performed, so V-7's purple date-axis markers were **not** located, not
+  enumerated, and not confirmed to be machine-readable. V-7 remains what it was: a statement from
+  TradingView's documentation that such markers exist on `ES1!`, **not** an observation on `MGC1!`
+  or `MNQ1!`.
+- No `MGC1!`-vs-concrete-contract comparison was performed, so the P-5 fallback produced nothing.
+- **U-1, U-2, U-3, U-6, U-7, U-9 are all unchanged and remain UNKNOWN.**
+
+**The critical evidence rule holds and is restated:** V-2 ("TradingView rolls `1!` on a fixed
+per-symbol rule derived from average volume statistics") is a *rule*, and a rule is not a calendar.
+Nothing in this section converts it into one. No CME expiration date has been substituted for a
+TradingView roll date anywhere in this document, and I-3 (that a roll occurred inside the research
+window) remains an **inference**, not an observation, notwithstanding that it is very likely true.
+
+### 10.4 Adjustment evidence (P-3, P-5)
+
+**NONE. UNKNOWN.**
+
+- The chart settings model was not read, so the live `B-ADJ` state is unobserved and it is unknown
+  whether the setting persists per layout.
+- No dual daily-bar export was taken, so the segment-wise constant-offset signature (§4) was not
+  computed.
+- **U-5 is unchanged and remains UNKNOWN.** I-1 (that the frozen research ran unadjusted) remains
+  an inference resting on V-4 (adjustment defaults off) plus the absence of any repository
+  instruction to enable it. **That is an argument from silence and is explicitly not evidence.**
+  Its stated risk-if-wrong is High and that assessment is unchanged.
+
+### 10.5 Unresolved questions after P-1…P-5
+
+Every unknown carried into this investigation survives it. Nothing was resolved, and — the point
+worth stating plainly — **nothing was downgraded from UNKNOWN to INFERRED merely because the
+evidence could not be obtained.**
+
+| # | unknown | status after P-1…P-5 |
+|---|---|---|
+| U-1 | roll-rule N for `MGC1!` | **UNKNOWN** — unchanged |
+| U-2 | roll-rule N for `MNQ1!` | **UNKNOWN** — unchanged |
+| U-3 | actual roll dates in the research window | **UNKNOWN** — unchanged; this is the single load-bearing gap |
+| U-4 | concrete contract per bar | **UNKNOWN** — unchanged; downstream of U-3 |
+| U-5 | B-ADJ on or off during 13F/14/15 | **UNKNOWN** — unchanged |
+| U-6 | calendar vs business days, holiday handling | **UNKNOWN** — unchanged |
+| U-7 | `_DL` vs non-`_DL` share a roll rule | **UNKNOWN** — unchanged |
+| U-8 | prefix used by the frozen runs | **UNKNOWN** — unchanged; re-confirmed unanswerable from the run files themselves (§10.1) |
+| U-9 | whether the roll rule was ever revised retroactively | **UNKNOWN** — unchanged |
+| **U-10** | **whether the concrete monthly contracts (`MGCM2026` etc.) exist on TradingView and are entitled to this account** | **NEW, UNKNOWN** — the P-5 fallback is conditional on this and it has never been checked |
+| **U-11** | **whether the MCP relay will be available at all during Phase B** | **NEW, UNKNOWN** — three recorded outages (§10.0); if TradingView is the parity oracle for Phase C Gate 1, oracle availability is itself a project risk |
+
+U-11 is not a data question, but it belongs here. §9's recommendation to export and hash the Phase C
+dataset **soon** was written against U-9 (retroactive revision). This attempt supplies a second,
+independent reason for the same recommendation: the export route is intermittently unavailable, and
+the window in which it can be taken is not under this project's control.
+
+### 10.6 Updated B-1 acceptance checklist
+
+| # | criterion | status before P-1…P-5 | status after |
+|---|---|---|---|
+| 1 | MGC roll calendar frozen | ⛔ BLOCKED | ⛔ **BLOCKED** — no change; blocker reclassified data-unavailable → **infrastructure-unavailable** |
+| 2 | MNQ roll calendar frozen | ⛔ BLOCKED | ⛔ **BLOCKED** — as above |
+| 3 | Every relevant bar resolves to a concrete contract | ⛔ BLOCKED | ⛔ **BLOCKED** — downstream of 1 and 2 |
+| 4 | Adjustment semantics documented | 🟡 PARTIAL | 🟡 **PARTIAL** — unchanged; mechanism VERIFIED, mode in force still UNKNOWN (U-5) |
+| 5 | Unresolved assumptions explicitly identified | ✅ DONE | ✅ **DONE** — extended with U-10, U-11 |
+| 6 | No fabricated roll dates | ✅ DONE | ✅ **DONE** — still none asserted anywhere |
+| 7 | Calendar committed to the repository | ⛔ BLOCKED | ⛔ **BLOCKED** — nothing to commit |
+| 8 | Calendar deterministic / version-controlled | 🟡 schema defined | 🟡 **unchanged**, unpopulated |
+| 9 | Phase 16 untouched | ✅ DONE | ✅ **DONE** — re-verified by hash after every relay attempt (§10.7) |
+| 10 | Repository state audited, not assumed | ✅ DONE | ✅ **DONE** — §10.1 re-ran the prefix sweep |
+| 11 | Semantics graded VERIFIED / INFERRED / UNKNOWN | ✅ DONE | ✅ **DONE** — grading applied throughout §10 |
+| 12 | Concrete-contract mapping invariant defined | ✅ DONE | ✅ **DONE** — unchanged |
+| 13 | Required data pull specified precisely | ✅ DONE | ✅ **DONE** — sharpened by §10.7 |
+
+**7 of 13 complete, 2 partial, 4 blocked — numerically identical to before.** B-1 is not complete
+and is not closer to complete. The honest summary is that this attempt eliminated a *hypothesis
+about why* B-1 was blocked (it is not blocked because the metadata route is wrong — that route was
+never reached) without eliminating the blockage.
+
+### 10.7 Exact evidence required to unblock
+
+Each item below is the *minimum sufficient* observation. Anything less does not close the criterion.
+
+| for | required evidence | closes | acceptance test |
+|---|---|---|---|
+| **E-1** | A dump of `chart.symbolExt()` on `MGC1!` and `MNQ1!` via `ui_evaluate`, verbatim, all keys | U-4 partly, U-1/U-2 if a roll or expiry field is present | the raw object is pasted into this document; absent fields are recorded as absent |
+| **E-2** | The chart-model roll markers (V-7) enumerated as timestamps for both symbols over ≥ 2026-04-01 → 2026-09-01 | **U-3** — the load-bearing gap | each marker is an extracted timestamp with the model path it came from; a screenshot alone is **not** sufficient |
+| **E-3** | *If E-2 is unavailable:* daily bars for `MGC1!` and each candidate concrete contract over the same window, forming bar dropped (M-6) | **U-3** observationally | the date on which the continuous series stops matching contract *k* and starts matching *k+1*, shown bar-by-bar for ≥ 3 bars either side |
+| **E-4** | Existence and entitlement check for `MGCM2026`/`MGCQ2026`/`MGCV2026`/`MNQM2026`/`MNQU2026` | **U-10** | `symbol_search` result, or an explicit "no such symbol" |
+| **E-5** | The chart settings model's `B-ADJ` field, read directly | **U-5** partly | the field name and value, quoted |
+| **E-6** | Daily-bar export of one instrument across a **known** roll date, once B-ADJ off and once on | **U-5** independently | a segment-wise constant additive offset appears in exactly one of the two series (§4) |
+| **E-7** | Roll markers on `COMEX_MINI:MGC1!` and `COMEX_MINI_DL:MGC1!` compared | **U-7**; makes U-8 moot **only if identical** | both marker sets extracted and diffed |
+
+**Precondition for all of E-1…E-7: a working MCP relay.** That is the entire remaining blocker and
+it is not resolvable from inside this session. It requires the connector re-established or the
+session restarted, on the user's side.
+
+**Two things E-1…E-7 must not become.** First, a CME expiration date is not a TradingView roll
+date, and E-3's observational fallback is the *only* sanctioned substitute for E-2 — not a CME
+calendar. Second, if both E-2 and E-3 prove permanently unavailable, the honest outcome is §9's
+second recommendation: scope Phase C Gate 1 parity to a **roll-free sub-window** and record the
+reduction explicitly. That should be a deliberate decision by the user, not a drift.
+
+### 10.8 Verification of this attempt
+
+| check | result |
+|---|---|
+| TradingView reached | **no** — zero successful calls; 9 × HTTP 502 at the relay across 2 distinct tools |
+| Pine artifact loaded / compiled / executed | **none** — `pine_*` tools were never invoked, and no schema for them was even loaded |
+| chart symbol / timeframe / settings mutated | **none** — no write-capable tool was invoked |
+| OOS or post-FE data inspected | **none** |
+| roll date asserted | **none** |
+| adjustment mode asserted | **none** |
+| Phase 16 artifacts | unchanged — re-verified by `sha256sum -c` after every attempt: `V53_P16_OOS_BUILD.pine` `5c21acfa…`, `PHASE16_PROTOCOL.md` `c5b6c853…`, `p16_analyze.py` `588eb9d0…` all OK |
+| V53 artifacts | unchanged — `V53_ltf_sequence.pine` `7490766b…`, `V53_EXECUTED_BUILD.pine` `2dafbafd…` OK |
+| strategy / execution / data-architecture code | **not modified** |
+| Databento / provider adapter / aggregator | **not started** |
+| files changed by this section | **1 modified**: `docs/PHASE_B1_ROLL_CALENDAR.md`. Zero created, zero deleted |
