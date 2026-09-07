@@ -1,0 +1,4 @@
+FUNNEL L B 3m: foldbars 4668 | w/LTF 4668 | sweeps 275 | CHOCH 97 | retests 70 | BOS+disp 3 | FVG 1 | fills 0
+ break-no-disp 130 | noFVG 2 | Rband 0 | FVGexpiry 1 | expire 178/27/67 | dropped 0 | ASSERTS all 0
+PERF MNQ1! L 3m B: cov 2026-07-16 00:00 -> 2026-08-07 20:55 | fills 0 | ZERO TRADES
+LEDGER: (0 fills)

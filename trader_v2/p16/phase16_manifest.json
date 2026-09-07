@@ -1,0 +1,88 @@
+{
+  "artifacts": {
+    "analyser": {
+      "file": "trader_v2/p16/p16_analyze.py",
+      "note": "pre-registered; frozen before any OOS data exists",
+      "sha256": "588eb9d08ea929af170f8691681eeae7e552e6642fa7893a4bc549be0c7afde8"
+    },
+    "analyser_tests": {
+      "file": "trader_v2/p16/test_p16_analyze.py",
+      "note": "fixtures are historical Phase 13F records only, all pre-FE",
+      "sha256": "72a3fd90721480bfb985f018b2aa871751ef782619246068576b643f006ff942"
+    },
+    "canonical_source": {
+      "file": "trader_v2/V53_ltf_sequence.pine",
+      "note": "frozen reference; never executed",
+      "sha256": "7490766b6e3de062989a8e7f10939869cc6b679d253ce584f223064aa5797ef5"
+    },
+    "derivation_audit": {
+      "file": "trader_v2/p16/P16_DERIVATION_AUDIT.txt",
+      "sha256": "b91629d2fe34fc3e030340adcef986742b994544457e89e913dc34db49369910"
+    },
+    "derivation_script": {
+      "file": "trader_v2/p16/derive_p16_oos.py",
+      "sha256": "ce4f23f4ddc41300fec29a33fe189c2b35d0ac9cfd5a2ce39fe43fbc3e843eaa"
+    },
+    "execution_baseline": {
+      "file": "trader_v2/p15/executed/V53_EXECUTED_BUILD.pine",
+      "note": "Phase 15 provenance anchor; source of the derivation",
+      "sha256": "2dafbafd5f6731e93c6fc4a2d55048bb32d5c0d75581ed7fffd877a0cf58efe6"
+    },
+    "oos_artifact": {
+      "file": "trader_v2/p16/executed/V53_P16_OOS_BUILD.pine",
+      "note": "any change INVALIDATES the accumulation period (protocol §8)",
+      "sha256": "5c21acfab1b0c832aaa562a0afc84c94e595da2318f2366dd153c1d08172b333"
+    },
+    "protocol": {
+      "file": "trader_v2/p16/PHASE16_PROTOCOL.md",
+      "sha256": "c5b6c85315ee48be407786644d7e310857ad6a98985587b6b3a9c1cc85bbf3d3"
+    },
+    "verification_script": {
+      "file": "trader_v2/p16/verify_p16_oos.py",
+      "sha256": "09ac8034a4e35316540a998957f4b373824090eadb0f59efb830db0a307e14d3"
+    }
+  },
+  "confirmation": "No Phase 16 strategy run has occurred. No OOS funnel, trade, P&L or performance figure has been produced, inspected, estimated or previewed.",
+  "frozen_scope": {
+    "cells": 8,
+    "directions": [
+      "long",
+      "short"
+    ],
+    "instruments": [
+      "MGC1!",
+      "MNQ1!"
+    ],
+    "ltfs": [
+      "1m",
+      "3m"
+    ],
+    "strategy": "frozen V53 only"
+  },
+  "manifest_version": 1,
+  "phase": "16 — out-of-sample validation",
+  "statistical_design": {
+    "alpha": 0.05,
+    "alternative": "p > p*",
+    "event_outcome_rule": "WIN only if EVERY fill in the event is a WIN; any LOSS, any timeout or any mixture is NON-WIN",
+    "family_wise_error": "two one-sided tests at alpha=0.05 each; each verdict controlled at 5%, probability of some rejection under H0 up to 10%",
+    "interval": "Clopper-Pearson 95%, implemented in p16_analyze.clopper_pearson",
+    "null_hypothesis": "p = p* = 0.1751",
+    "p_star": 0.1751,
+    "power_at_n80_vs_p1": 0.8,
+    "power_floor_min_events": 40,
+    "pre_registered_alternative_p1": 0.3,
+    "primary_unit": "alternative-identity events",
+    "test": "one-sided exact binomial"
+  },
+  "status": "PRE-REGISTERED, PRE-ACCUMULATION. No OOS run has occurred.",
+  "validation_window": {
+    "calendar_days": 214,
+    "end_ms": 1806624000000,
+    "end_utc": "2027-04-02 00:00 UTC",
+    "fold_selector": "foldSel = 5",
+    "note": "fixed calendar stopping boundary; never revised, never event-count based",
+    "start_ms": 1788134400000,
+    "start_utc": "2026-08-31 00:00 UTC"
+  }
+}

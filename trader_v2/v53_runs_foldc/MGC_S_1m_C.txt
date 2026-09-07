@@ -1,0 +1,8 @@
+FUNNEL S C 1m: foldbars 4164 | w/LTF 4164 | LTFbars 100000 | sweeps 214 | CHOCH 205 | retests 171 | BOS+disp 9 | FVG 7 | fills 4
+ break-no-disp 869 | noFVG 2 | Rband 0 | FVGexpiry 3 | expire 9/34/162 | dropped 0 | ASSERTS all 0
+PERF MGC1! S 1m C: cov 2026-08-09 22:00 -> 2026-08-30 23:55 | fills 4 | W0 Lstop4 TO0 | wr 0% | Rpre -4 | Rpost -4.154 | avg -1.0384 | med -1.0327 | exp -1.0384R | maxConsecL 4 | DD_R 4.154 | DD_$ 353.07 | tot$ -353.07
+LEDGER:
+MGC1!|S|1m|C|sw 2026-08-17 11:45|PD|swX 4457.6|ch 2026-08-17 12:01|chL 4451.3|rt 2026-08-17 12:02|bos 2026-08-17 12:26|bosL 4449.4|fvg 4446.2-4447.7|en 2026-08-17 13:35|enPx 4447.7|stop 4458.3637|LOSS|-1.028R|$-109.64|stop|3bars
+MGC1!|S|1m|C|sw 2026-08-17 11:50|PD|swX 4455.5|ch 2026-08-17 12:09|chL 4450|rt 2026-08-17 12:10|bos 2026-08-17 12:26|bosL 4449.4|fvg 4446.2-4447.7|en 2026-08-17 13:35|enPx 4447.7|stop 4456.2691|LOSS|-1.035R|$-88.69|stop|3bars
+MGC1!|S|1m|C|sw 2026-08-24 11:40|AS|swX 4724.5|ch 2026-08-24 12:01|chL 4713|rt 2026-08-24 12:07|bos 2026-08-24 12:32|bosL 4712.5|fvg 4712.7-4716|en 2026-08-24 12:35|enPx 4716|stop 4725.8876|LOSS|-1.03R|$-101.88|stop|1bars
+MGC1!|S|1m|C|sw 2026-08-24 11:45|AS+SW|swX 4719.5|ch 2026-08-24 12:01|chL 4713|rt 2026-08-24 12:07|bos 2026-08-24 12:32|bosL 4712.5|fvg 4712.7-4716|en 2026-08-24 12:35|enPx 4716|stop 4720.987|LOSS|-1.06R|$-52.87|stop|1bars

@@ -1,0 +1,148 @@
+//@version=6
+// =====================================================================
+// V16 BREAKOUT + TRADE EXPORT
+// Donchian breakout, long-biased, hard stop + ATR trail.
+// exitMode 1 fixedATR  2 trailOnly  3 trailAfter1R  4 hardStop+trail
+//
+// exitMode 4 exists because strategy.exit() with only trail_points/
+// trail_offset has NO protective stop until price is trail_points onside --
+// losers were bounded only by the opposite signal, producing a $1,318 loss
+// against $500 of intended risk. Passing stop= alongside the trail took max
+// drawdown from $3,328 to $2,201 and the largest loss to $739.
+//
+// Validated: Oct 2025-Sep 2026 PF 2.18 / Sep 2023-Sep 2025 PF 2.10 (OOS).
+// Its limitation is not the edge -- a 3xATR stop on 1H gold is ~$87, so one
+// MGC contract risks $868 against a $2,000 MLL. See V17 for the fix.
+// =====================================================================
+strategy("V16 BREAKOUT", overlay=true,
+     initial_capital=50000, currency=currency.USD,
+     default_qty_type=strategy.fixed, default_qty_value=1,
+     pyramiding=1,
+     commission_type=strategy.commission.cash_per_order, commission_value=1.24,
+     slippage=2,
+     margin_long=5, margin_short=5,
+     max_labels_count=500)
+
+side      = input.int(2,  "side 1both 2long 3short",        minval=1, maxval=3, group="Grid")
+exitMode  = input.int(4,  "exit 1fix 2trail 3after1R 4both", minval=1, maxval=4, group="Grid")
+entryMode = input.int(3,  "entry 1cross 2pullback 3donch",  minval=1, maxval=3, group="Grid")
+regime    = input.int(0,  "regime 0off 1htf",               minval=0, maxval=1, group="Grid")
+
+emaFastLen= input.int(20,  "EMA fast", group="Trend")
+emaSlowLen= input.int(50,  "EMA slow", group="Trend")
+donchLen  = input.int(20,  "Donchian length", group="Trend")
+htfEmaLen = input.int(50,  "HTF EMA length", group="Trend")
+htfRes    = input.string("D", "HTF resolution", group="Trend")
+
+stopATR   = input.float(3.0,  "Stop (xATR)",        group="Risk")
+trailStart= input.float(3.0,  "Trail start (xATR)", group="Risk")
+trailOff  = input.float(3.0,  "Trail offset (xATR)",group="Risk")
+riskUSD   = input.float(500,  "Risk per trade ($)", group="Risk")
+maxCtr    = input.int(40,     "Max contracts/units",group="Risk")
+
+startTime = input.time(timestamp("2025-10-01 00:00 +0000"), "Start (UTC)", group="Window")
+endTime   = input.time(timestamp("2026-09-03 23:59 +0000"), "End (UTC)",   group="Window")
+doExport  = input.bool(true, "Export trades as labels", group="Export")
+
+atr  = ta.atr(14)
+eF   = ta.ema(close, emaFastLen)
+eS   = ta.ema(close, emaSlowLen)
+dcHi = ta.highest(high, donchLen)[1]
+dcLo = ta.lowest(low,  donchLen)[1]
+
+htfClose = request.security(syminfo.tickerid, htfRes, close[1], lookahead=barmerge.lookahead_off)
+htfEma   = request.security(syminfo.tickerid, htfRes, ta.ema(close, htfEmaLen)[1], lookahead=barmerge.lookahead_off)
+htfUp    = htfClose > htfEma
+htfDn    = htfClose < htfEma
+
+inWin = time >= startTime and time <= endTime
+ptVal = na(syminfo.pointvalue) or syminfo.pointvalue <= 0 ? 1.0 : syminfo.pointvalue
+
+sizeFor(d) =>
+    rpc = d * ptVal
+    rpc > 0 ? math.min(math.max(1, math.floor(riskUSD / rpc)), maxCtr) : 1
+
+xUp    = ta.crossover(eF, eS)
+xDn    = ta.crossunder(eF, eS)
+cxUpEF = ta.crossover(close, eF)
+cxDnEF = ta.crossunder(close, eF)
+cxUpDC = ta.crossover(close, dcHi)
+cxDnDC = ta.crossunder(close, dcLo)
+
+pullUp = cxUpEF and eF > eS
+pullDn = cxDnEF and eF < eS
+
+rawLong  = entryMode == 1 ? xUp : entryMode == 2 ? pullUp : cxUpDC
+rawShort = entryMode == 1 ? xDn : entryMode == 2 ? pullDn : cxDnDC
+
+okLong  = (side == 1 or side == 2) and (regime == 0 or htfUp)
+okShort = (side == 1 or side == 3) and (regime == 0 or htfDn)
+
+goLong  = rawLong  and okLong
+goShort = rawShort and okShort
+
+dStop   = stopATR * atr
+trlPts  = trailStart * atr / syminfo.mintick
+trlOffs = trailOff   * atr / syminfo.mintick
+
+var float entryPx  = na
+var float entryStp = na
+var float lastRisk = na
+
+if inWin and dStop > 0
+    n = sizeFor(dStop)
+    if goLong and strategy.position_size <= 0
+        strategy.entry("L", strategy.long, qty=n)
+        entryPx  := close
+        entryStp := close - dStop
+        lastRisk := dStop * ptVal * n
+    if goShort and strategy.position_size >= 0
+        strategy.entry("S", strategy.short, qty=n)
+        entryPx  := close
+        entryStp := close + dStop
+        lastRisk := dStop * ptVal * n
+
+if strategy.position_size > 0
+    if exitMode == 1
+        strategy.exit("xL", "L", stop=entryStp)
+    else if exitMode == 2
+        strategy.exit("xL", "L", trail_points=trlPts, trail_offset=trlOffs)
+    else if exitMode == 4
+        strategy.exit("xL", "L", stop=entryStp, trail_points=trlPts, trail_offset=trlOffs)
+    else
+        r = entryPx - entryStp
+        if close >= entryPx + r
+            strategy.exit("xL", "L", stop=entryPx, trail_points=trlPts, trail_offset=trlOffs)
+        else
+            strategy.exit("xL", "L", stop=entryStp)
+    if rawShort and not okShort
+        strategy.close("L", comment="flip flat")
+
+if strategy.position_size < 0
+    if exitMode == 1
+        strategy.exit("xS", "S", stop=entryStp)
+    else if exitMode == 2
+        strategy.exit("xS", "S", trail_points=trlPts, trail_offset=trlOffs)
+    else if exitMode == 4
+        strategy.exit("xS", "S", stop=entryStp, trail_points=trlPts, trail_offset=trlOffs)
+    else
+        r2 = entryStp - entryPx
+        if close <= entryPx - r2
+            strategy.exit("xS", "S", stop=entryPx, trail_points=trlPts, trail_offset=trlOffs)
+        else
+            strategy.exit("xS", "S", stop=entryStp)
+    if rawLong and not okLong
+        strategy.close("S", comment="flip flat")
+
+if strategy.position_size != 0 and time > endTime
+    strategy.close_all(comment="window end")
+
+var int lastN = 0
+if doExport and strategy.closedtrades > lastN
+    for i = lastN to strategy.closedtrades - 1
+        txt = "T|" + str.tostring(i) + "|" + str.tostring(strategy.closedtrades.entry_time(i)) + "|" + str.tostring(strategy.closedtrades.exit_time(i)) + "|" + str.tostring(strategy.closedtrades.profit(i), "#.##") + "|" + str.tostring(strategy.closedtrades.size(i), "#.##") + "|" + str.tostring(strategy.closedtrades.max_runup(i), "#.##") + "|" + str.tostring(strategy.closedtrades.max_drawdown(i), "#.##")
+        label.new(bar_index, high, txt, style=label.style_none, textcolor=color.new(color.white, 100), size=size.tiny)
+    lastN := strategy.closedtrades
+
+plot(dcHi, "Donchian high", color.new(color.lime, 0))
+plot(dcLo, "Donchian low",  color.new(color.red, 0))

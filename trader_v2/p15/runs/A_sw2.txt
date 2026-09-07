@@ -1,0 +1,12 @@
+# EXPERIMENT A -- swLen = 2 (baseline 3). File byte-identical to V53; only in_14 changed.
+MGC L 1m A | bars 10386 | cov 9813 | sw 544 | ch 481 | rt 457 | bos 6 | fvg 6 | fill 3 | W1 Ls2 TO0 | Rpre 3 | Rpost 2.873 | avg 0.9577 | med -1.0398 | mcL 1 | ddR 1.045 | ddU 78.28 | usd 210.29 | ASSERT 0
+MGC L 1m B | bars 4668 | cov 4668 | sw 161 | ch 155 | rt 141 | bos 2 | fvg 2 | fill 1 | W0 Ls0 TO1 | Rpre -1 | Rpost -1.029 | avg -1.0288 | med -1.0288 | mcL 1 | ddR 1.029 | ddU 107.14 | usd -107.14 | ASSERT 0
+MGC L 1m C | bars 4164 | cov 4164 | sw 179 | ch 171 | rt 154 | bos 4 | fvg 3 | fill 1 | W0 Ls1 TO0 | Rpre -1 | Rpost -1.149 | avg -1.1494 | med -1.1494 | mcL 1 | ddR 1.149 | ddU 23.08 | usd -23.08 | ASSERT 0
+LEDGER
+MGC1!|L|1m|A|sw 2026-06-10 11:45|SW|swX 4174.3|ch 2026-06-10 12:25|chL 4160.4|rt 2026-06-10 12:27|bos 2026-06-10 12:30|bosL 4164.7|fvg 4165.2-4177.8|en 2026-06-10 12:55|enPx 4165.2|stop 4172.7284|LOSS|-1.04R|$-78.28|stop|4bars
+MGC1!|L|1m|A|sw 2026-06-26 12:20|SW|swX 4056.7|ch 2026-06-26 12:50|chL 4059.3|rt 2026-06-26 12:51|bos 2026-06-26 12:57|bosL 4063.8|fvg 4063-4068.5|en 2026-06-26 13:05|enPx 4063|stop 4055.7894|WIN|4.958R|$357.53|target|13bars
+MGC1!|L|1m|A|sw 2026-07-10 20:00|AS|swX 4116.4|ch 2026-07-10 20:41|chL 4120.6|rt 2026-07-10 20:42|bos 2026-07-10 20:53|bosL 4121.1|fvg 4122.4-4126.2|en 2026-07-12 22:00|enPx 4122.4|stop 4115.8039|LOSS|-1.045R|$-68.96|stop|1bars
+MGC1!|L|1m|B|sw 2026-08-04 10:45|SW|swX 4108.1|ch 2026-08-04 11:10|chL 4111.6|rt 2026-08-04 11:11|bos 2026-08-04 11:43|bosL 4120.7|fvg 4117.8-4119.6|en 2026-08-04 12:10|enPx 4117.8|stop 4107.3858|LOSS|-1.029R|$-107.14|timeout|144bars
+MGC1!|L|1m|C|sw 2026-08-10 00:00|SW|swX 4391.4|ch 2026-08-10 00:10|chL 4401.5|rt 2026-08-10 00:11|bos 2026-08-10 01:01|bosL 4396.4|fvg 4392.5-4393.9|en 2026-08-10 01:05|enPx 4392.5|stop 4390.4924|LOSS|-1.149R|$-23.08|stop|1bars
+MGC L 3m A | bars 10386 | cov 10386 | sw 544 | ch 275 | rt 216 | bos 13 | fvg 12 | fill 10 | W1 Ls9 TO0 | Rpre -4 | Rpost -4.671 | avg -0.4671 | med -1.0230 | mcL 9 | ddR 9.647 | ddU 1031.04 | usd -396.03 | ASSERT 0
+MGC L 3m B | bars 4668 | cov 4668 | sw 161 | ch 90 | rt 55 | bos 3 | fvg 3 | fill 1 | W0 Ls0 TO1 | Rpre -1 | Rpost -1.023 | avg -1.0227 | med -1.0227 | mcL 1 | ddR 1.023 | ddU 134.95 | usd -134.95 | ASSERT 0

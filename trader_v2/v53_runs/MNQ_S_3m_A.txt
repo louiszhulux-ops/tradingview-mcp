@@ -1,0 +1,7 @@
+FUNNEL S A 3m: foldbars 10368 | w/LTF 10368 | sweeps 641 | CHOCH 225 | retests 179 | BOS+disp 9 | FVG 6 | fills 3
+ break-no-disp 197 | noFVG 3 | Rband 2 | FVGexpiry 1 | expire 416/46/170 | dropped 0 | ASSERTS all 0
+PERF MNQ1! S 3m A: cov 2026-05-24 22:00 -> 2026-07-15 23:55 | fills 3 | W0 Lstop2 TO1 | wr 0% | Rpre -3 | Rpost -3.091 | avg -1.0302 | med -1.0336 | exp -1.0302R | maxConsecL 3 | DD_R 3.091 | DD_$ 318.40 | tot$ -318.40
+LEDGER:
+MNQ1!|S|3m|A|sw 2026-06-03 12:45|AS|swX 30733.75|ch 2026-06-03 13:33|chL 30699.25|rt 2026-06-03 13:36|bos 2026-06-03 13:42|bosL 30703.75|fvg 30649.25-30694|en 2026-06-03 14:15|enPx 30694|stop 30737.5999|LOSS|-1.034R|$-90.2|stop|5bars
+MNQ1!|S|3m|A|sw 2026-06-03 12:50|AS|swX 30734.75|ch 2026-06-03 13:33|chL 30699.25|rt 2026-06-03 13:36|bos 2026-06-03 13:42|bosL 30703.75|fvg 30649.25-30694|en 2026-06-03 14:15|enPx 30694|stop 30738.6571|LOSS|-1.034R|$-92.31|stop|5bars
+MNQ1!|S|3m|A|sw 2026-07-05 23:40|SW|swX 29989.25|ch 2026-07-06 00:00|chL 29963.5|rt 2026-07-06 00:06|bos 2026-07-06 00:27|bosL 29900.25|fvg 29908.75-29928|en 2026-07-06 00:35|enPx 29928|stop 29994.4412|LOSS|-1.023R|$-135.88|timeout|144bars

@@ -1,0 +1,70 @@
+{
+  "asserts": {
+    "all_zero": true,
+    "raw": "all 0",
+    "values": null
+  },
+  "cell": {
+    "direction": "S",
+    "fold": "B",
+    "instrument": "MGC1!",
+    "instrument_short": "MGC",
+    "ltf": "3m"
+  },
+  "coverage": {
+    "end_ms": 1786136100000,
+    "end_utc": "2026-08-07 20:55",
+    "start_ms": 1784160000000,
+    "start_utc": "2026-07-16 00:00"
+  },
+  "fills": [],
+  "fills_truncated_at_source": false,
+  "fixture_id": "v53-MGC-S-3m-B",
+  "funnel": {
+    "bos_displacement": 7,
+    "break_no_displacement": 83,
+    "choch": 77,
+    "dropped_no_slot": 0,
+    "expire_post_choch": 13,
+    "expire_post_retest": 57,
+    "expire_pre_choch": 149,
+    "fills": 0,
+    "fold_bars": 4668,
+    "fold_bars_with_ltf": 4668,
+    "fvg": 4,
+    "fvg_retest_expiry": 1,
+    "ltf_bars": null,
+    "no_fvg": 3,
+    "r_band_rejects": 3,
+    "retests": 64,
+    "sweeps": 226
+  },
+  "not_captured": [
+    "5m and LTF pivot confirmations (ta.pivothigh/low) — never emitted per event",
+    "per-sequence displacement qualification — only the aggregate BOS+disp counter",
+    "V53 slot index (0..23) — not emitted in the ledger",
+    "sequences that armed but never filled — only aggregate funnel counters",
+    "per-bar state transitions — the ledger records one row per fill, at fill time",
+    "exit price for timeout exits — only the R multiple and USD are recorded",
+    "ATR at arm, and therefore r_atr_ratio — not emitted per event"
+  ],
+  "performance": {
+    "fills": 0,
+    "zero_trades": true
+  },
+  "provenance": {
+    "attribution_note": "The canonical artifact never executed (Phase 15 provenance correction). The executed artifact is the earliest hashed build of the program that produced this data; it reproduced the committed Phase 13F/14 per-cell results exactly under pooled packaging (p15/POOLED_DESIGN_VERIFICATION.md). No hash was captured at Phase 13F/14 run time, so the executed-artifact hash is an attribution by reproduction, not a contemporaneous record.",
+    "canonical_artifact": "trader_v2/V53_ltf_sequence.pine",
+    "canonical_artifact_sha256": "7490766b6e3de062989a8e7f10939869cc6b679d253ce584f223064aa5797ef5",
+    "executed_artifact": "trader_v2/p15/executed/V53_EXECUTED_BUILD.pine",
+    "executed_artifact_sha256": "2dafbafd5f6731e93c6fc4a2d55048bb32d5c0d75581ed7fffd877a0cf58efe6",
+    "extractor": "bot/tools/extract_golden.py",
+    "extractor_version": "1.0.0",
+    "research_phase": "13F",
+    "source_file": "trader_v2/v53_runs/MGC_S_3m_B.txt",
+    "source_sha256": "c4c43a6d5cda1671dd692074fc71ca345c9b16f2dc059bda43dfdbc43e3ce2b0",
+    "strategy_id": "V53"
+  },
+  "schema_version": 1,
+  "source_notes": []
+}

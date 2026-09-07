@@ -1,0 +1,8 @@
+FUNNEL S B 3m: foldbars 4668 | w/LTF 4668 | sweeps 230 | CHOCH 91 | retests 62 | BOS+disp 2 | FVG 2 | fills 2
+ break-no-disp 81 | noFVG 0 | Rband 0 | FVGexpiry 0 | expire 139/29/60 | dropped 0 | ASSERTS all 0
+PERF MNQ1! S 3m B: cov 2026-07-16 00:00 -> 2026-08-07 20:55 | fills 2 | W2 Lstop0 TO0 | wr 100% | Rpre 10 | Rpost 9.943 | avg 4.9716 | med 4.9716 | exp 4.9716R | maxConsecL 0 | DD_R 0 | DD_$ 0 | tot$ 1063.25
+LEDGER:
+MNQ1!|S|3m|B|sw 2026-07-22 00:25|SW|swX 29316.75|ch 2026-07-22 00:45|chL 29272|rt 2026-07-22 00:48|bos 2026-07-22 01:00|bosL 29258.5|fvg 29249-29273.25|en 2026-07-22 01:45|enPx 29273.25|stop 29321.2418|WIN|4.969R|$476.92|target|71bars
+MNQ1!|S|3m|B|sw 2026-07-22 00:20|SW|swX 29327.75|ch 2026-07-22 00:45|chL 29272|rt 2026-07-22 00:48|bos 2026-07-22 01:00|bosL 29258.5|fvg 29249-29273.25|en 2026-07-22 01:45|enPx 29273.25|stop 29332.1834|WIN|4.975R|$586.33|target|134bars
+NOTE: duplicate pair again -- same entry 29273.25, two sweep bars 5 min apart, both won. The entire fold-B
+ 3m short result for MNQ is ONE market event counted twice.

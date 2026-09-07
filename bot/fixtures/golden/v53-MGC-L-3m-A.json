@@ -1,0 +1,321 @@
+{
+  "asserts": {
+    "all_zero": true,
+    "raw": "all 0",
+    "values": null
+  },
+  "cell": {
+    "direction": "L",
+    "fold": "A",
+    "instrument": "MGC1!",
+    "instrument_short": "MGC",
+    "ltf": "3m"
+  },
+  "coverage": {
+    "end_ms": 1784159700000,
+    "end_utc": "2026-07-15 23:55",
+    "start_ms": 1779660000000,
+    "start_utc": "2026-05-24 22:00"
+  },
+  "fills": [
+    {
+      "derived": {
+        "checks": {
+          "pnl_reconciled": true,
+          "r_reconciled": true
+        },
+        "note": "target_price is arithmetic (entry ± tgtR × |entry − stop|, tgtR = 5.0 frozen). V53 does not emit a target price, so this is a derived convenience value, cross-validated against recorded P&L on every target exit — not a recorded expectation. stop_inverted marks a stop on the far side of entry, a real recorded V53 outcome that B2 must reproduce rather than correct.",
+        "point_value_usd": "10",
+        "r_distance": "12.7602",
+        "stop_inverted": false,
+        "target_price": "4472.60100"
+      },
+      "event_keys": {
+        "alternative": "MGC1!|L|3m|2026-05-28 05:30|4406.4|2026-05-28 06:05|4408.8",
+        "primary": "MGC1!|L|3m|2026-05-28 05:09|4403.9|2026-05-28 05:30|4406.4|2026-05-28 06:05|4408.8"
+      },
+      "index": 0,
+      "recorded": {
+        "bars_in_trade": 96,
+        "bos_level": "4406.4",
+        "bos_ts_ms": 1779946200000,
+        "bos_ts_utc": "2026-05-28 05:30",
+        "choch_level": "4403.9",
+        "choch_ts_ms": 1779944940000,
+        "choch_ts_utc": "2026-05-28 05:09",
+        "direction": "L",
+        "entry_price": "4408.8",
+        "entry_ts_ms": 1779948300000,
+        "entry_ts_utc": "2026-05-28 06:05",
+        "exit_reason": "target",
+        "fold": "A",
+        "fvg_high": "4412.6",
+        "fvg_low": "4408.8",
+        "instrument": "MGC1!",
+        "ltf": "3m",
+        "outcome": "WIN",
+        "pnl_usd": "635.01",
+        "r_multiple": "4.976",
+        "retest_ts_ms": 1779945120000,
+        "retest_ts_utc": "2026-05-28 05:12",
+        "stop_price": "4396.0398",
+        "sweep_extreme": "4397.3",
+        "sweep_kind": "PD",
+        "sweep_ts_ms": 1779943800000,
+        "sweep_ts_utc": "2026-05-28 04:50"
+      }
+    },
+    {
+      "derived": {
+        "checks": {
+          "pnl_reconciled": true,
+          "r_reconciled": true
+        },
+        "note": "target_price is arithmetic (entry ± tgtR × |entry − stop|, tgtR = 5.0 frozen). V53 does not emit a target price, so this is a derived convenience value, cross-validated against recorded P&L on every target exit — not a recorded expectation. stop_inverted marks a stop on the far side of entry, a real recorded V53 outcome that B2 must reproduce rather than correct.",
+        "point_value_usd": "10",
+        "r_distance": "7.2858",
+        "stop_inverted": false,
+        "target_price": "4226.82900"
+      },
+      "event_keys": {
+        "alternative": "MGC1!|L|3m|2026-07-03 08:00|4194.7|2026-07-03 08:45|4190.4",
+        "primary": "MGC1!|L|3m|2026-07-03 07:48|4193.6|2026-07-03 08:00|4194.7|2026-07-03 08:45|4190.4"
+      },
+      "index": 1,
+      "recorded": {
+        "bars_in_trade": 9,
+        "bos_level": "4194.7",
+        "bos_ts_ms": 1783065600000,
+        "bos_ts_utc": "2026-07-03 08:00",
+        "choch_level": "4193.6",
+        "choch_ts_ms": 1783064880000,
+        "choch_ts_utc": "2026-07-03 07:48",
+        "direction": "L",
+        "entry_price": "4190.4",
+        "entry_ts_ms": 1783068300000,
+        "entry_ts_utc": "2026-07-03 08:45",
+        "exit_reason": "stop",
+        "fold": "A",
+        "fvg_high": "4194.7",
+        "fvg_low": "4190.4",
+        "instrument": "MGC1!",
+        "ltf": "3m",
+        "outcome": "LOSS",
+        "pnl_usd": "-75.86",
+        "r_multiple": "-1.041",
+        "retest_ts_ms": 1783065060000,
+        "retest_ts_utc": "2026-07-03 07:51",
+        "stop_price": "4183.1142",
+        "sweep_extreme": "4184",
+        "sweep_kind": "SW",
+        "sweep_ts_ms": 1783062000000,
+        "sweep_ts_utc": "2026-07-03 07:00"
+      }
+    },
+    {
+      "derived": {
+        "checks": {
+          "pnl_reconciled": true,
+          "r_reconciled": true
+        },
+        "note": "target_price is arithmetic (entry ± tgtR × |entry − stop|, tgtR = 5.0 frozen). V53 does not emit a target price, so this is a derived convenience value, cross-validated against recorded P&L on every target exit — not a recorded expectation. stop_inverted marks a stop on the far side of entry, a real recorded V53 outcome that B2 must reproduce rather than correct.",
+        "point_value_usd": "10",
+        "r_distance": "13.6626",
+        "stop_inverted": false,
+        "target_price": "4157.01300"
+      },
+      "event_keys": {
+        "alternative": "MGC1!|L|3m|2026-07-13 01:30|4090.9|2026-07-13 01:50|4088.7",
+        "primary": "MGC1!|L|3m|2026-07-13 01:06|4085.4|2026-07-13 01:30|4090.9|2026-07-13 01:50|4088.7"
+      },
+      "index": 2,
+      "recorded": {
+        "bars_in_trade": 7,
+        "bos_level": "4090.9",
+        "bos_ts_ms": 1783906200000,
+        "bos_ts_utc": "2026-07-13 01:30",
+        "choch_level": "4085.4",
+        "choch_ts_ms": 1783904760000,
+        "choch_ts_utc": "2026-07-13 01:06",
+        "direction": "L",
+        "entry_price": "4088.7",
+        "entry_ts_ms": 1783907400000,
+        "entry_ts_utc": "2026-07-13 01:50",
+        "exit_reason": "stop",
+        "fold": "A",
+        "fvg_high": "4090.8",
+        "fvg_low": "4088.7",
+        "instrument": "MGC1!",
+        "ltf": "3m",
+        "outcome": "LOSS",
+        "pnl_usd": "-139.63",
+        "r_multiple": "-1.022",
+        "retest_ts_ms": 1783904940000,
+        "retest_ts_utc": "2026-07-13 01:09",
+        "stop_price": "4075.0374",
+        "sweep_extreme": "4076.3",
+        "sweep_kind": "PD",
+        "sweep_ts_ms": 1783903200000,
+        "sweep_ts_utc": "2026-07-13 00:40"
+      }
+    },
+    {
+      "derived": {
+        "checks": {
+          "pnl_reconciled": true,
+          "r_reconciled": true
+        },
+        "note": "target_price is arithmetic (entry ± tgtR × |entry − stop|, tgtR = 5.0 frozen). V53 does not emit a target price, so this is a derived convenience value, cross-validated against recorded P&L on every target exit — not a recorded expectation. stop_inverted marks a stop on the far side of entry, a real recorded V53 outcome that B2 must reproduce rather than correct.",
+        "point_value_usd": "10",
+        "r_distance": "11.3429",
+        "stop_inverted": false,
+        "target_price": "4127.11450"
+      },
+      "event_keys": {
+        "alternative": "MGC1!|L|3m|2026-07-13 05:06|4065.7|2026-07-13 05:20|4070.4",
+        "primary": "MGC1!|L|3m|2026-07-13 04:57|4065.5|2026-07-13 05:06|4065.7|2026-07-13 05:20|4070.4"
+      },
+      "index": 3,
+      "recorded": {
+        "bars_in_trade": 8,
+        "bos_level": "4065.7",
+        "bos_ts_ms": 1783919160000,
+        "bos_ts_utc": "2026-07-13 05:06",
+        "choch_level": "4065.5",
+        "choch_ts_ms": 1783918620000,
+        "choch_ts_utc": "2026-07-13 04:57",
+        "direction": "L",
+        "entry_price": "4070.4",
+        "entry_ts_ms": 1783920000000,
+        "entry_ts_utc": "2026-07-13 05:20",
+        "exit_reason": "stop",
+        "fold": "A",
+        "fvg_high": "4076.1",
+        "fvg_low": "4070.4",
+        "instrument": "MGC1!",
+        "ltf": "3m",
+        "outcome": "LOSS",
+        "pnl_usd": "-116.43",
+        "r_multiple": "-1.026",
+        "retest_ts_ms": 1783918800000,
+        "retest_ts_utc": "2026-07-13 05:00",
+        "stop_price": "4059.0571",
+        "sweep_extreme": "4060",
+        "sweep_kind": "SW",
+        "sweep_ts_ms": 1783915800000,
+        "sweep_ts_utc": "2026-07-13 04:10"
+      }
+    },
+    {
+      "derived": {
+        "checks": {
+          "pnl_reconciled": true,
+          "r_reconciled": true
+        },
+        "note": "target_price is arithmetic (entry ± tgtR × |entry − stop|, tgtR = 5.0 frozen). V53 does not emit a target price, so this is a derived convenience value, cross-validated against recorded P&L on every target exit — not a recorded expectation. stop_inverted marks a stop on the far side of entry, a real recorded V53 outcome that B2 must reproduce rather than correct.",
+        "point_value_usd": "10",
+        "r_distance": "13.5884",
+        "stop_inverted": false,
+        "target_price": "4138.34200"
+      },
+      "event_keys": {
+        "alternative": "MGC1!|L|3m|2026-07-13 05:06|4065.7|2026-07-13 05:20|4070.4",
+        "primary": "MGC1!|L|3m|2026-07-13 04:57|4065.5|2026-07-13 05:06|4065.7|2026-07-13 05:20|4070.4"
+      },
+      "index": 4,
+      "recorded": {
+        "bars_in_trade": 8,
+        "bos_level": "4065.7",
+        "bos_ts_ms": 1783919160000,
+        "bos_ts_utc": "2026-07-13 05:06",
+        "choch_level": "4065.5",
+        "choch_ts_ms": 1783918620000,
+        "choch_ts_utc": "2026-07-13 04:57",
+        "direction": "L",
+        "entry_price": "4070.4",
+        "entry_ts_ms": 1783920000000,
+        "entry_ts_utc": "2026-07-13 05:20",
+        "exit_reason": "stop",
+        "fold": "A",
+        "fvg_high": "4076.1",
+        "fvg_low": "4070.4",
+        "instrument": "MGC1!",
+        "ltf": "3m",
+        "outcome": "LOSS",
+        "pnl_usd": "-138.88",
+        "r_multiple": "-1.022",
+        "retest_ts_ms": 1783918800000,
+        "retest_ts_utc": "2026-07-13 05:00",
+        "stop_price": "4056.8116",
+        "sweep_extreme": "4057.8",
+        "sweep_kind": "SW",
+        "sweep_ts_ms": 1783916100000,
+        "sweep_ts_utc": "2026-07-13 04:15"
+      }
+    }
+  ],
+  "fills_truncated_at_source": false,
+  "fixture_id": "v53-MGC-L-3m-A",
+  "funnel": {
+    "bos_displacement": 9,
+    "break_no_displacement": 163,
+    "choch": 212,
+    "dropped_no_slot": 0,
+    "expire_post_choch": 48,
+    "expire_post_retest": 155,
+    "expire_pre_choch": 332,
+    "fills": 5,
+    "fold_bars": 10386,
+    "fold_bars_with_ltf": 10386,
+    "fvg": 6,
+    "fvg_retest_expiry": 0,
+    "ltf_bars": null,
+    "no_fvg": 3,
+    "r_band_rejects": 1,
+    "retests": 164,
+    "sweeps": 544
+  },
+  "not_captured": [
+    "5m and LTF pivot confirmations (ta.pivothigh/low) — never emitted per event",
+    "per-sequence displacement qualification — only the aggregate BOS+disp counter",
+    "V53 slot index (0..23) — not emitted in the ledger",
+    "sequences that armed but never filled — only aggregate funnel counters",
+    "per-bar state transitions — the ledger records one row per fill, at fill time",
+    "exit price for timeout exits — only the R multiple and USD are recorded",
+    "ATR at arm, and therefore r_atr_ratio — not emitted per event"
+  ],
+  "performance": {
+    "avg": "0.173",
+    "dd_r": "4.112",
+    "dd_usd": "470.80",
+    "exp": "0.173",
+    "fills": 5,
+    "losses_stop": 4,
+    "max_consec_losses": 4,
+    "med": "-1.0221",
+    "rpost": "0.865",
+    "rpre": "1",
+    "timeouts": 0,
+    "total_usd": "164.21",
+    "wins": 1,
+    "wr": "20",
+    "zero_trades": false
+  },
+  "provenance": {
+    "attribution_note": "The canonical artifact never executed (Phase 15 provenance correction). The executed artifact is the earliest hashed build of the program that produced this data; it reproduced the committed Phase 13F/14 per-cell results exactly under pooled packaging (p15/POOLED_DESIGN_VERIFICATION.md). No hash was captured at Phase 13F/14 run time, so the executed-artifact hash is an attribution by reproduction, not a contemporaneous record.",
+    "canonical_artifact": "trader_v2/V53_ltf_sequence.pine",
+    "canonical_artifact_sha256": "7490766b6e3de062989a8e7f10939869cc6b679d253ce584f223064aa5797ef5",
+    "executed_artifact": "trader_v2/p15/executed/V53_EXECUTED_BUILD.pine",
+    "executed_artifact_sha256": "2dafbafd5f6731e93c6fc4a2d55048bb32d5c0d75581ed7fffd877a0cf58efe6",
+    "extractor": "bot/tools/extract_golden.py",
+    "extractor_version": "1.0.0",
+    "research_phase": "13F",
+    "source_file": "trader_v2/v53_runs/MGC_L_3m_A.txt",
+    "source_sha256": "67a33d4879412b24427305a021aac567212080fdb6cf9e0105f0c46a982f0477",
+    "strategy_id": "V53"
+  },
+  "schema_version": 1,
+  "source_notes": [
+    "NOTE: the last two share one CHOCH/BOS/FVG/entry -- two sweep bars 5 min apart converged on the same LTF structure."
+  ]
+}

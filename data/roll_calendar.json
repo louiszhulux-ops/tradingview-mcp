@@ -1,0 +1,1157 @@
+{
+  "schema_version": "1.0.0",
+  "artifact": "phase_b1_roll_calendar",
+  "description": "Continuous-futures roll calendar for the TradingView `1!` series, as observed from TradingView's own RollDatesCalculator chart data source. Every entry is directly evidenced. No CME expiration date, first-notice date, generic monthly schedule, provider roll rule or volume/open-interest crossover has been substituted for a TradingView roll date.",
+  "observation_date": "2026-09-07",
+  "source": {
+    "platform": "TradingView Desktop 3.4.0",
+    "object": "model().dataSources() -> RollDatesCalculator._data",
+    "row_format": [
+      "unix_seconds",
+      "old_contract_YYYYMM",
+      "new_contract_YYYYMM",
+      "trade_date_YYYYMMDD"
+    ],
+    "entitlement": "delayed (_DL); non-_DL requests resolve to _DL on this account",
+    "back_adjustment": "disabled (backAdjustment=false)",
+    "evidence_reference": "docs/PHASE_B1_ROLL_CALENDAR.md section P-6 / E-1'..E-3'",
+    "confirmation_method": "roll dates for the 2026 research-window transitions were independently confirmed by bar-level price identity of the continuous series against the concrete old/new contracts (section E-3'b)"
+  },
+  "invariants": {
+    "trade_date_roll_local_time": "17:00",
+    "trade_date_roll_timezone": "America/Chicago",
+    "note": "Every observed roll instant falls at exactly 17:00 America/Chicago, the CME trade-date boundary. MGC is stamped America/New_York with session 1800-1700, which denotes the same instants (the two zones differ by exactly one hour year-round)."
+  },
+  "instruments": {
+    "MGC": {
+      "root": "MGC",
+      "continuous_symbol": "COMEX_MINI:MGC1!",
+      "resolved_symbol": "COMEX_MINI_DL:MGC1!",
+      "session": "1800-1700",
+      "session_timezone": "America/New_York",
+      "pointvalue": 10,
+      "minmov": 1,
+      "pricescale": 10,
+      "mintick": 0.1,
+      "contract_cycle": "GJMQZ",
+      "adjustment_mode": "none",
+      "roll_count": 88,
+      "rolls": [
+        {
+          "old_contract": "MGCZ2010",
+          "new_contract": "MGCG2011",
+          "trade_date": "2010-11-29",
+          "roll_timestamp": 1290985200,
+          "roll_timestamp_utc": "2010-11-28T23:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCG2011",
+          "new_contract": "MGCJ2011",
+          "trade_date": "2011-01-28",
+          "roll_timestamp": 1296169200,
+          "roll_timestamp_utc": "2011-01-27T23:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCJ2011",
+          "new_contract": "MGCM2011",
+          "trade_date": "2011-03-30",
+          "roll_timestamp": 1301436000,
+          "roll_timestamp_utc": "2011-03-29T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCM2011",
+          "new_contract": "MGCQ2011",
+          "trade_date": "2011-05-27",
+          "roll_timestamp": 1306447200,
+          "roll_timestamp_utc": "2011-05-26T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCQ2011",
+          "new_contract": "MGCZ2011",
+          "trade_date": "2011-07-28",
+          "roll_timestamp": 1311804000,
+          "roll_timestamp_utc": "2011-07-27T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCZ2011",
+          "new_contract": "MGCG2012",
+          "trade_date": "2011-11-29",
+          "roll_timestamp": 1322521200,
+          "roll_timestamp_utc": "2011-11-28T23:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCG2012",
+          "new_contract": "MGCJ2012",
+          "trade_date": "2012-01-30",
+          "roll_timestamp": 1327878000,
+          "roll_timestamp_utc": "2012-01-29T23:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCJ2012",
+          "new_contract": "MGCM2012",
+          "trade_date": "2012-03-29",
+          "roll_timestamp": 1332972000,
+          "roll_timestamp_utc": "2012-03-28T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCM2012",
+          "new_contract": "MGCQ2012",
+          "trade_date": "2012-05-30",
+          "roll_timestamp": 1338328800,
+          "roll_timestamp_utc": "2012-05-29T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCQ2012",
+          "new_contract": "MGCZ2012",
+          "trade_date": "2012-07-30",
+          "roll_timestamp": 1343599200,
+          "roll_timestamp_utc": "2012-07-29T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCZ2012",
+          "new_contract": "MGCG2013",
+          "trade_date": "2012-11-29",
+          "roll_timestamp": 1354143600,
+          "roll_timestamp_utc": "2012-11-28T23:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCG2013",
+          "new_contract": "MGCJ2013",
+          "trade_date": "2013-01-30",
+          "roll_timestamp": 1359500400,
+          "roll_timestamp_utc": "2013-01-29T23:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCJ2013",
+          "new_contract": "MGCM2013",
+          "trade_date": "2013-03-27",
+          "roll_timestamp": 1364335200,
+          "roll_timestamp_utc": "2013-03-26T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCM2013",
+          "new_contract": "MGCQ2013",
+          "trade_date": "2013-05-30",
+          "roll_timestamp": 1369864800,
+          "roll_timestamp_utc": "2013-05-29T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCQ2013",
+          "new_contract": "MGCZ2013",
+          "trade_date": "2013-07-30",
+          "roll_timestamp": 1375135200,
+          "roll_timestamp_utc": "2013-07-29T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCZ2013",
+          "new_contract": "MGCG2014",
+          "trade_date": "2013-11-27",
+          "roll_timestamp": 1385506800,
+          "roll_timestamp_utc": "2013-11-26T23:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCG2014",
+          "new_contract": "MGCJ2014",
+          "trade_date": "2014-01-30",
+          "roll_timestamp": 1391036400,
+          "roll_timestamp_utc": "2014-01-29T23:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCJ2014",
+          "new_contract": "MGCM2014",
+          "trade_date": "2014-03-28",
+          "roll_timestamp": 1395957600,
+          "roll_timestamp_utc": "2014-03-27T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCM2014",
+          "new_contract": "MGCQ2014",
+          "trade_date": "2014-05-29",
+          "roll_timestamp": 1401314400,
+          "roll_timestamp_utc": "2014-05-28T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCQ2014",
+          "new_contract": "MGCZ2014",
+          "trade_date": "2014-07-30",
+          "roll_timestamp": 1406671200,
+          "roll_timestamp_utc": "2014-07-29T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCZ2014",
+          "new_contract": "MGCG2015",
+          "trade_date": "2014-11-26",
+          "roll_timestamp": 1416956400,
+          "roll_timestamp_utc": "2014-11-25T23:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCG2015",
+          "new_contract": "MGCJ2015",
+          "trade_date": "2015-01-29",
+          "roll_timestamp": 1422486000,
+          "roll_timestamp_utc": "2015-01-28T23:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCJ2015",
+          "new_contract": "MGCM2015",
+          "trade_date": "2015-03-30",
+          "roll_timestamp": 1427666400,
+          "roll_timestamp_utc": "2015-03-29T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCM2015",
+          "new_contract": "MGCQ2015",
+          "trade_date": "2015-05-28",
+          "roll_timestamp": 1432764000,
+          "roll_timestamp_utc": "2015-05-27T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCQ2015",
+          "new_contract": "MGCZ2015",
+          "trade_date": "2015-07-30",
+          "roll_timestamp": 1438207200,
+          "roll_timestamp_utc": "2015-07-29T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCZ2015",
+          "new_contract": "MGCG2016",
+          "trade_date": "2015-11-27",
+          "roll_timestamp": 1448492400,
+          "roll_timestamp_utc": "2015-11-25T23:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCG2016",
+          "new_contract": "MGCJ2016",
+          "trade_date": "2016-01-28",
+          "roll_timestamp": 1453935600,
+          "roll_timestamp_utc": "2016-01-27T23:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCJ2016",
+          "new_contract": "MGCM2016",
+          "trade_date": "2016-03-30",
+          "roll_timestamp": 1459288800,
+          "roll_timestamp_utc": "2016-03-29T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCM2016",
+          "new_contract": "MGCQ2016",
+          "trade_date": "2016-05-27",
+          "roll_timestamp": 1464300000,
+          "roll_timestamp_utc": "2016-05-26T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCQ2016",
+          "new_contract": "MGCZ2016",
+          "trade_date": "2016-07-28",
+          "roll_timestamp": 1469656800,
+          "roll_timestamp_utc": "2016-07-27T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCZ2016",
+          "new_contract": "MGCG2017",
+          "trade_date": "2016-11-29",
+          "roll_timestamp": 1480374000,
+          "roll_timestamp_utc": "2016-11-28T23:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCG2017",
+          "new_contract": "MGCJ2017",
+          "trade_date": "2017-01-30",
+          "roll_timestamp": 1485730800,
+          "roll_timestamp_utc": "2017-01-29T23:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCJ2017",
+          "new_contract": "MGCM2017",
+          "trade_date": "2017-03-30",
+          "roll_timestamp": 1490824800,
+          "roll_timestamp_utc": "2017-03-29T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCM2017",
+          "new_contract": "MGCQ2017",
+          "trade_date": "2017-05-30",
+          "roll_timestamp": 1496008800,
+          "roll_timestamp_utc": "2017-05-28T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCQ2017",
+          "new_contract": "MGCZ2017",
+          "trade_date": "2017-07-28",
+          "roll_timestamp": 1501192800,
+          "roll_timestamp_utc": "2017-07-27T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCZ2017",
+          "new_contract": "MGCG2018",
+          "trade_date": "2017-11-29",
+          "roll_timestamp": 1511910000,
+          "roll_timestamp_utc": "2017-11-28T23:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCG2018",
+          "new_contract": "MGCJ2018",
+          "trade_date": "2018-01-30",
+          "roll_timestamp": 1517266800,
+          "roll_timestamp_utc": "2018-01-29T23:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCJ2018",
+          "new_contract": "MGCM2018",
+          "trade_date": "2018-03-28",
+          "roll_timestamp": 1522188000,
+          "roll_timestamp_utc": "2018-03-27T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCM2018",
+          "new_contract": "MGCQ2018",
+          "trade_date": "2018-05-30",
+          "roll_timestamp": 1527631200,
+          "roll_timestamp_utc": "2018-05-29T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCQ2018",
+          "new_contract": "MGCZ2018",
+          "trade_date": "2018-07-30",
+          "roll_timestamp": 1532901600,
+          "roll_timestamp_utc": "2018-07-29T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCZ2018",
+          "new_contract": "MGCG2019",
+          "trade_date": "2018-11-29",
+          "roll_timestamp": 1543446000,
+          "roll_timestamp_utc": "2018-11-28T23:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCG2019",
+          "new_contract": "MGCJ2019",
+          "trade_date": "2019-01-30",
+          "roll_timestamp": 1548802800,
+          "roll_timestamp_utc": "2019-01-29T23:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCJ2019",
+          "new_contract": "MGCM2019",
+          "trade_date": "2019-03-28",
+          "roll_timestamp": 1553724000,
+          "roll_timestamp_utc": "2019-03-27T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCM2019",
+          "new_contract": "MGCQ2019",
+          "trade_date": "2019-05-30",
+          "roll_timestamp": 1559167200,
+          "roll_timestamp_utc": "2019-05-29T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCQ2019",
+          "new_contract": "MGCZ2019",
+          "trade_date": "2019-07-30",
+          "roll_timestamp": 1564437600,
+          "roll_timestamp_utc": "2019-07-29T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCZ2019",
+          "new_contract": "MGCG2020",
+          "trade_date": "2019-11-27",
+          "roll_timestamp": 1574809200,
+          "roll_timestamp_utc": "2019-11-26T23:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCG2020",
+          "new_contract": "MGCJ2020",
+          "trade_date": "2020-01-30",
+          "roll_timestamp": 1580338800,
+          "roll_timestamp_utc": "2020-01-29T23:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCJ2020",
+          "new_contract": "MGCM2020",
+          "trade_date": "2020-03-30",
+          "roll_timestamp": 1585519200,
+          "roll_timestamp_utc": "2020-03-29T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCM2020",
+          "new_contract": "MGCQ2020",
+          "trade_date": "2020-05-28",
+          "roll_timestamp": 1590616800,
+          "roll_timestamp_utc": "2020-05-27T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCQ2020",
+          "new_contract": "MGCZ2020",
+          "trade_date": "2020-07-30",
+          "roll_timestamp": 1596060000,
+          "roll_timestamp_utc": "2020-07-29T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCZ2020",
+          "new_contract": "MGCG2021",
+          "trade_date": "2020-11-27",
+          "roll_timestamp": 1606345200,
+          "roll_timestamp_utc": "2020-11-25T23:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCG2021",
+          "new_contract": "MGCJ2021",
+          "trade_date": "2021-01-28",
+          "roll_timestamp": 1611788400,
+          "roll_timestamp_utc": "2021-01-27T23:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCJ2021",
+          "new_contract": "MGCM2021",
+          "trade_date": "2021-03-30",
+          "roll_timestamp": 1617055200,
+          "roll_timestamp_utc": "2021-03-29T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCM2021",
+          "new_contract": "MGCQ2021",
+          "trade_date": "2021-05-27",
+          "roll_timestamp": 1622066400,
+          "roll_timestamp_utc": "2021-05-26T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCQ2021",
+          "new_contract": "MGCZ2021",
+          "trade_date": "2021-07-29",
+          "roll_timestamp": 1627509600,
+          "roll_timestamp_utc": "2021-07-28T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCZ2021",
+          "new_contract": "MGCG2022",
+          "trade_date": "2021-11-29",
+          "roll_timestamp": 1638140400,
+          "roll_timestamp_utc": "2021-11-28T23:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCG2022",
+          "new_contract": "MGCJ2022",
+          "trade_date": "2022-01-28",
+          "roll_timestamp": 1643324400,
+          "roll_timestamp_utc": "2022-01-27T23:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCJ2022",
+          "new_contract": "MGCM2022",
+          "trade_date": "2022-03-30",
+          "roll_timestamp": 1648591200,
+          "roll_timestamp_utc": "2022-03-29T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCM2022",
+          "new_contract": "MGCQ2022",
+          "trade_date": "2022-05-27",
+          "roll_timestamp": 1653602400,
+          "roll_timestamp_utc": "2022-05-26T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCQ2022",
+          "new_contract": "MGCZ2022",
+          "trade_date": "2022-07-28",
+          "roll_timestamp": 1658959200,
+          "roll_timestamp_utc": "2022-07-27T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCZ2022",
+          "new_contract": "MGCG2023",
+          "trade_date": "2022-11-29",
+          "roll_timestamp": 1669676400,
+          "roll_timestamp_utc": "2022-11-28T23:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCG2023",
+          "new_contract": "MGCJ2023",
+          "trade_date": "2023-01-30",
+          "roll_timestamp": 1675033200,
+          "roll_timestamp_utc": "2023-01-29T23:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCJ2023",
+          "new_contract": "MGCM2023",
+          "trade_date": "2023-03-30",
+          "roll_timestamp": 1680127200,
+          "roll_timestamp_utc": "2023-03-29T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCM2023",
+          "new_contract": "MGCQ2023",
+          "trade_date": "2023-05-30",
+          "roll_timestamp": 1685311200,
+          "roll_timestamp_utc": "2023-05-28T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCQ2023",
+          "new_contract": "MGCZ2023",
+          "trade_date": "2023-07-28",
+          "roll_timestamp": 1690495200,
+          "roll_timestamp_utc": "2023-07-27T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCZ2023",
+          "new_contract": "MGCG2024",
+          "trade_date": "2023-11-29",
+          "roll_timestamp": 1701212400,
+          "roll_timestamp_utc": "2023-11-28T23:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCG2024",
+          "new_contract": "MGCJ2024",
+          "trade_date": "2024-01-30",
+          "roll_timestamp": 1706569200,
+          "roll_timestamp_utc": "2024-01-29T23:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCJ2024",
+          "new_contract": "MGCM2024",
+          "trade_date": "2024-03-27",
+          "roll_timestamp": 1711490400,
+          "roll_timestamp_utc": "2024-03-26T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCM2024",
+          "new_contract": "MGCQ2024",
+          "trade_date": "2024-05-30",
+          "roll_timestamp": 1717020000,
+          "roll_timestamp_utc": "2024-05-29T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCQ2024",
+          "new_contract": "MGCZ2024",
+          "trade_date": "2024-07-30",
+          "roll_timestamp": 1722290400,
+          "roll_timestamp_utc": "2024-07-29T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCZ2024",
+          "new_contract": "MGCG2025",
+          "trade_date": "2024-11-27",
+          "roll_timestamp": 1732662000,
+          "roll_timestamp_utc": "2024-11-26T23:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCG2025",
+          "new_contract": "MGCJ2025",
+          "trade_date": "2025-01-30",
+          "roll_timestamp": 1738191600,
+          "roll_timestamp_utc": "2025-01-29T23:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCJ2025",
+          "new_contract": "MGCM2025",
+          "trade_date": "2025-03-28",
+          "roll_timestamp": 1743112800,
+          "roll_timestamp_utc": "2025-03-27T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCM2025",
+          "new_contract": "MGCQ2025",
+          "trade_date": "2025-05-29",
+          "roll_timestamp": 1748469600,
+          "roll_timestamp_utc": "2025-05-28T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCQ2025",
+          "new_contract": "MGCZ2025",
+          "trade_date": "2025-07-30",
+          "roll_timestamp": 1753826400,
+          "roll_timestamp_utc": "2025-07-29T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCZ2025",
+          "new_contract": "MGCG2026",
+          "trade_date": "2025-11-26",
+          "roll_timestamp": 1764111600,
+          "roll_timestamp_utc": "2025-11-25T23:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCG2026",
+          "new_contract": "MGCJ2026",
+          "trade_date": "2026-01-29",
+          "roll_timestamp": 1769641200,
+          "roll_timestamp_utc": "2026-01-28T23:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCJ2026",
+          "new_contract": "MGCM2026",
+          "trade_date": "2026-03-30",
+          "roll_timestamp": 1774821600,
+          "roll_timestamp_utc": "2026-03-29T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCM2026",
+          "new_contract": "MGCQ2026",
+          "trade_date": "2026-05-28",
+          "roll_timestamp": 1779919200,
+          "roll_timestamp_utc": "2026-05-27T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCQ2026",
+          "new_contract": "MGCZ2026",
+          "trade_date": "2026-07-30",
+          "roll_timestamp": 1785362400,
+          "roll_timestamp_utc": "2026-07-29T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MGCZ2026",
+          "new_contract": "MGCG2027",
+          "trade_date": "2026-11-27",
+          "roll_timestamp": 1795647600,
+          "roll_timestamp_utc": "2026-11-25T23:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "scheduled"
+        },
+        {
+          "old_contract": "MGCG2027",
+          "new_contract": "MGCJ2027",
+          "trade_date": "2027-01-28",
+          "roll_timestamp": 1801090800,
+          "roll_timestamp_utc": "2027-01-27T23:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "scheduled"
+        },
+        {
+          "old_contract": "MGCJ2027",
+          "new_contract": "MGCM2027",
+          "trade_date": "2027-03-30",
+          "roll_timestamp": 1806357600,
+          "roll_timestamp_utc": "2027-03-29T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "scheduled"
+        },
+        {
+          "old_contract": "MGCM2027",
+          "new_contract": "MGCQ2027",
+          "trade_date": "2027-05-27",
+          "roll_timestamp": 1811368800,
+          "roll_timestamp_utc": "2027-05-26T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "scheduled"
+        },
+        {
+          "old_contract": "MGCQ2027",
+          "new_contract": "MGCZ2027",
+          "trade_date": "2027-07-29",
+          "roll_timestamp": 1816812000,
+          "roll_timestamp_utc": "2027-07-28T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "scheduled"
+        },
+        {
+          "old_contract": "MGCZ2027",
+          "new_contract": "MGCG2028",
+          "trade_date": "2027-11-29",
+          "roll_timestamp": 1827442800,
+          "roll_timestamp_utc": "2027-11-28T23:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "scheduled"
+        },
+        {
+          "old_contract": "MGCG2028",
+          "new_contract": "MGCJ2028",
+          "trade_date": "2028-01-28",
+          "roll_timestamp": 1832626800,
+          "roll_timestamp_utc": "2028-01-27T23:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "scheduled"
+        },
+        {
+          "old_contract": "MGCJ2028",
+          "new_contract": "MGCM2028",
+          "trade_date": "2028-03-30",
+          "roll_timestamp": 1837980000,
+          "roll_timestamp_utc": "2028-03-29T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "scheduled"
+        }
+      ]
+    },
+    "MNQ": {
+      "root": "MNQ",
+      "continuous_symbol": "CME_MINI:MNQ1!",
+      "resolved_symbol": "CME_MINI_DL:MNQ1!",
+      "session": "1700-1600",
+      "session_timezone": "America/Chicago",
+      "pointvalue": 2,
+      "minmov": 25,
+      "pricescale": 100,
+      "mintick": 0.25,
+      "contract_cycle": "HMUZ",
+      "adjustment_mode": "none",
+      "roll_count": 34,
+      "rolls": [
+        {
+          "old_contract": "MNQM2019",
+          "new_contract": "MNQU2019",
+          "trade_date": "2019-06-18",
+          "roll_timestamp": 1560808800,
+          "roll_timestamp_utc": "2019-06-17T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MNQU2019",
+          "new_contract": "MNQZ2019",
+          "trade_date": "2019-09-17",
+          "roll_timestamp": 1568671200,
+          "roll_timestamp_utc": "2019-09-16T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MNQZ2019",
+          "new_contract": "MNQH2020",
+          "trade_date": "2019-12-17",
+          "roll_timestamp": 1576537200,
+          "roll_timestamp_utc": "2019-12-16T23:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MNQH2020",
+          "new_contract": "MNQM2020",
+          "trade_date": "2020-03-17",
+          "roll_timestamp": 1584396000,
+          "roll_timestamp_utc": "2020-03-16T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MNQM2020",
+          "new_contract": "MNQU2020",
+          "trade_date": "2020-06-16",
+          "roll_timestamp": 1592258400,
+          "roll_timestamp_utc": "2020-06-15T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MNQU2020",
+          "new_contract": "MNQZ2020",
+          "trade_date": "2020-09-15",
+          "roll_timestamp": 1600120800,
+          "roll_timestamp_utc": "2020-09-14T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MNQZ2020",
+          "new_contract": "MNQH2021",
+          "trade_date": "2020-12-15",
+          "roll_timestamp": 1607986800,
+          "roll_timestamp_utc": "2020-12-14T23:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MNQH2021",
+          "new_contract": "MNQM2021",
+          "trade_date": "2021-03-16",
+          "roll_timestamp": 1615845600,
+          "roll_timestamp_utc": "2021-03-15T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MNQM2021",
+          "new_contract": "MNQU2021",
+          "trade_date": "2021-06-15",
+          "roll_timestamp": 1623708000,
+          "roll_timestamp_utc": "2021-06-14T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MNQU2021",
+          "new_contract": "MNQZ2021",
+          "trade_date": "2021-09-14",
+          "roll_timestamp": 1631570400,
+          "roll_timestamp_utc": "2021-09-13T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MNQZ2021",
+          "new_contract": "MNQH2022",
+          "trade_date": "2021-12-14",
+          "roll_timestamp": 1639436400,
+          "roll_timestamp_utc": "2021-12-13T23:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MNQH2022",
+          "new_contract": "MNQM2022",
+          "trade_date": "2022-03-15",
+          "roll_timestamp": 1647295200,
+          "roll_timestamp_utc": "2022-03-14T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MNQM2022",
+          "new_contract": "MNQU2022",
+          "trade_date": "2022-06-14",
+          "roll_timestamp": 1655157600,
+          "roll_timestamp_utc": "2022-06-13T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MNQU2022",
+          "new_contract": "MNQZ2022",
+          "trade_date": "2022-09-13",
+          "roll_timestamp": 1663020000,
+          "roll_timestamp_utc": "2022-09-12T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MNQZ2022",
+          "new_contract": "MNQH2023",
+          "trade_date": "2022-12-13",
+          "roll_timestamp": 1670886000,
+          "roll_timestamp_utc": "2022-12-12T23:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MNQH2023",
+          "new_contract": "MNQM2023",
+          "trade_date": "2023-03-14",
+          "roll_timestamp": 1678744800,
+          "roll_timestamp_utc": "2023-03-13T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MNQM2023",
+          "new_contract": "MNQU2023",
+          "trade_date": "2023-06-13",
+          "roll_timestamp": 1686607200,
+          "roll_timestamp_utc": "2023-06-12T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MNQU2023",
+          "new_contract": "MNQZ2023",
+          "trade_date": "2023-09-12",
+          "roll_timestamp": 1694469600,
+          "roll_timestamp_utc": "2023-09-11T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MNQZ2023",
+          "new_contract": "MNQH2024",
+          "trade_date": "2023-12-12",
+          "roll_timestamp": 1702335600,
+          "roll_timestamp_utc": "2023-12-11T23:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MNQH2024",
+          "new_contract": "MNQM2024",
+          "trade_date": "2024-03-12",
+          "roll_timestamp": 1710194400,
+          "roll_timestamp_utc": "2024-03-11T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MNQM2024",
+          "new_contract": "MNQU2024",
+          "trade_date": "2024-06-17",
+          "roll_timestamp": 1718575200,
+          "roll_timestamp_utc": "2024-06-16T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MNQU2024",
+          "new_contract": "MNQZ2024",
+          "trade_date": "2024-09-17",
+          "roll_timestamp": 1726524000,
+          "roll_timestamp_utc": "2024-09-16T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MNQZ2024",
+          "new_contract": "MNQH2025",
+          "trade_date": "2024-12-17",
+          "roll_timestamp": 1734390000,
+          "roll_timestamp_utc": "2024-12-16T23:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MNQH2025",
+          "new_contract": "MNQM2025",
+          "trade_date": "2025-03-18",
+          "roll_timestamp": 1742248800,
+          "roll_timestamp_utc": "2025-03-17T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MNQM2025",
+          "new_contract": "MNQU2025",
+          "trade_date": "2025-06-16",
+          "roll_timestamp": 1750024800,
+          "roll_timestamp_utc": "2025-06-15T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MNQU2025",
+          "new_contract": "MNQZ2025",
+          "trade_date": "2025-09-16",
+          "roll_timestamp": 1757973600,
+          "roll_timestamp_utc": "2025-09-15T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MNQZ2025",
+          "new_contract": "MNQH2026",
+          "trade_date": "2025-12-16",
+          "roll_timestamp": 1765839600,
+          "roll_timestamp_utc": "2025-12-15T23:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MNQH2026",
+          "new_contract": "MNQM2026",
+          "trade_date": "2026-03-17",
+          "roll_timestamp": 1773698400,
+          "roll_timestamp_utc": "2026-03-16T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MNQM2026",
+          "new_contract": "MNQU2026",
+          "trade_date": "2026-06-15",
+          "roll_timestamp": 1781474400,
+          "roll_timestamp_utc": "2026-06-14T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "historical"
+        },
+        {
+          "old_contract": "MNQU2026",
+          "new_contract": "MNQZ2026",
+          "trade_date": "2026-09-15",
+          "roll_timestamp": 1789423200,
+          "roll_timestamp_utc": "2026-09-14T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "scheduled"
+        },
+        {
+          "old_contract": "MNQZ2026",
+          "new_contract": "MNQH2027",
+          "trade_date": "2026-12-15",
+          "roll_timestamp": 1797289200,
+          "roll_timestamp_utc": "2026-12-14T23:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "scheduled"
+        },
+        {
+          "old_contract": "MNQH2027",
+          "new_contract": "MNQM2027",
+          "trade_date": "2027-03-16",
+          "roll_timestamp": 1805148000,
+          "roll_timestamp_utc": "2027-03-15T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "scheduled"
+        },
+        {
+          "old_contract": "MNQM2027",
+          "new_contract": "MNQU2027",
+          "trade_date": "2027-06-14",
+          "roll_timestamp": 1812924000,
+          "roll_timestamp_utc": "2027-06-13T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "scheduled"
+        },
+        {
+          "old_contract": "MNQU2027",
+          "new_contract": "MNQZ2027",
+          "trade_date": "2027-09-14",
+          "roll_timestamp": 1820872800,
+          "roll_timestamp_utc": "2027-09-13T22:00:00Z",
+          "roll_timezone": "America/Chicago",
+          "status": "scheduled"
+        }
+      ]
+    }
+  }
+}

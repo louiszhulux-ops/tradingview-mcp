@@ -1,0 +1,43 @@
+================================================================================================================
+ARM: B_d125_pooled   (B_d125_pooled)   cells run: 8/8   execution fills: 115
+================================================================================================================
+
+POOLED A+B+C FUNNEL  (pooled counters; NOT per-fold measurements)
+          sweeps   CHOCH      %  retest      %  BOS+d      %   FVG      %  fills      %  sw->fill
+  1m        3836    3324  86.7%    2974  89.5%    211  7.09%   154  73.0%     81  52.6%     2.11%
+  3m        3836    1480  38.6%    1095  74.0%    117 10.68%    82  70.1%     34  41.5%     0.89%
+
+PER-CELL (pooled A+B+C)
+  cell             bars    cov    sw    ch    rt  bos  fvg  fill  W  Ls  TO    Rpost      avg
+  MGC S 3m        19218  19218   872   347   262   28   19     4  0   4   0   -4.144  -1.0360
+  MGC S 1m        19218  18645   872   790   703   40   33    13  2  11   0   -2.053  -0.1579
+  MGC L 1m        19218  18645   884   738   664   30   29    15  5   8   2   14.261   0.9507
+  MGC L 3m        19218  19218   884   344   259   28   21     9  3   4   2    8.724   0.9693
+  MNQ L 3m        19200  19200   952   362   258   24   13     6  0   6   0   -6.165  -1.0275
+  MNQ L 1m        19200  18644   952   829   762   67   44    20  1  17   2  -14.803  -0.7402
+  MNQ S 1m        19200  18644  1128   967   845   74   48    33  7  24   2    6.589   0.1997
+  MNQ S 3m        19200  19200  1128   427   316   37   29    15  3  11   1    2.393   0.1595
+
+PERFORMANCE — pooled and per fold (reconstructed from each fill's sweep timestamp)
+  scope          fills  W   L  TO   win%   Rpre    Rpost     avgR     medR  mcL     ddR     ddUSD        USD
+  H1 1m A           40  7  33   2  17.5%      2   -0.466  -0.0116  -1.0360   13  22.803   1855.58      95.25
+  H1 1m B           17  3  14   4  17.6%      1   -0.085  -0.0050  -1.0190    8   8.287   1200.64   -1122.65
+  H1 1m C           24  5  19   0  20.8%      6    4.543   0.1893  -1.0305   12  12.482   1238.60     146.55
+  H1 1m ALL         81 15  66   6  18.5%      9    3.992   0.0493  -1.0300   18  27.928   3687.71    -880.85
+  H2 3m A           19  3  16   1  15.8%     -1   -1.617  -0.0851  -1.0220    8   8.462   1101.93    -466.92
+  H2 3m B            7  2   5   2  28.6%      5    4.761   0.6801  -1.0280    3   3.122    252.72     605.75
+  H2 3m C            8  1   7   0  12.5%     -2   -2.336  -0.2920  -1.0345    4   4.171    364.30    -177.08
+  H2 3m ALL         34  6  28   3  17.6%      2    0.808   0.0238  -1.0260    8   8.654   1306.71     -38.25
+
+EVENT CLUSTERING (Phase 13G identities, unchanged)
+  all  execution N 115 | primary  86 | alternative  76 | multi(alt) 34 | largest 4 | fills in multi  73 (63.5%)
+  1m   execution N  81 | primary  63 | alternative  53 | multi(alt) 23 | largest 4 | fills in multi  51 (63.0%)
+  3m   execution N  34 | primary  23 | alternative  23 | multi(alt) 11 | largest 2 | fills in multi  22 (64.7%)
+
+DELTA vs FROZEN BASELINE  (absolute, and % of baseline)
+                  sweeps           CHOCH          retest        BOS+disp           FVG         fills
+  1m         +0 ( +0.0%)     +0 ( +0.0%)     +0 ( +0.0%)   +104 (+97.2%)    +78 (+102.6%)    +40 (+97.6%)
+  3m         +0 ( +0.0%)     +0 ( +0.0%)     +0 ( +0.0%)    +43 (+58.1%)    +32 (+64.0%)    +17 (+100.0%)
+  H1 1m: fills 41 -> 81 (+40) | wins 5 -> 15 (+10) | losses 36 -> 66 (+30) | R -13.389 -> +3.992 (+17.381) | expectancy -0.3266 -> +0.0493 (+0.3758) | maxDD_R 23.941 -> 27.928
+  H2 3m: fills 17 -> 34 (+17) | wins 4 -> 6 (+2) | losses 13 -> 28 (+15) | R +6.482 -> +0.808 (-5.674) | expectancy +0.3813 -> +0.0238 (-0.3575) | maxDD_R 9.232 -> 8.654
+

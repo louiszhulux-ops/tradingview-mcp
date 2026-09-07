@@ -1,0 +1,68 @@
+//@version=6
+// P-9 LTF EXTRACTION PROBE -- DATA EXTRACTION ONLY.
+// Contains no strategy logic: no ATR, no pivots, no sweep, no CHOCH, no BOS,
+// no FVG, no entry, no stop, no target, no risk, no P&L, no signals.
+// It requests the lower-timeframe arrays and republishes them as plots so the
+// raw values can be read back. Nothing is computed from them.
+indicator("P9 LTF EXTRACTION", overlay=false)
+
+ltfStr = input.string("1", "lower timeframe", options=["1", "3"])
+
+// Frozen pre-FE boundary. Recovered from repository evidence, not chosen here:
+//   trader_v2/V53_ltf_sequence.pine:33            FE = 1788134400000
+//   trader_v2/p15/executed/V53_EXECUTED_BUILD.pine:31  FE = 1788134400000
+//   bot/guards.py                                 FE_MS = 1788134400000
+//   trader_v2/p16/p16_analyze.py                  OOS_START_MS = 1788134400000
+// Convention is EXCLUSIVE, matching V53's inFold: (time < FE).
+FE = 1788134400000
+
+// Same request mechanism and same five-field request shape as the frozen V53
+// LTF stream (V53_ltf_sequence.pine:99-103). aO is requested to preserve the
+// request shape exactly; it is never plotted and never persisted.
+aO = request.security_lower_tf(syminfo.tickerid, ltfStr, open)
+aH = request.security_lower_tf(syminfo.tickerid, ltfStr, high)
+aL = request.security_lower_tf(syminfo.tickerid, ltfStr, low)
+aC = request.security_lower_tf(syminfo.tickerid, ltfStr, close)
+aT = request.security_lower_tf(syminfo.tickerid, ltfStr, time)
+
+// Parent-level pre-FE gate: nothing is emitted for a parent bar at or after FE,
+// so no post-FE lower-timeframe value can ever reach a plot.
+preFE = time < FE
+
+gf(arr, k) => array.size(arr) > k ? array.get(arr, k) : na
+gt(k) => array.size(aT) > k ? array.get(aT, k) / 1000 : na
+
+n = preFE ? array.size(aC) : na
+plot(n, "n")
+
+plot(preFE ? gt(0)      : na, "t0")
+plot(preFE ? gf(aH, 0)  : na, "h0")
+plot(preFE ? gf(aL, 0)  : na, "l0")
+plot(preFE ? gf(aC, 0)  : na, "c0")
+
+plot(preFE ? gt(1)      : na, "t1")
+plot(preFE ? gf(aH, 1)  : na, "h1")
+plot(preFE ? gf(aL, 1)  : na, "l1")
+plot(preFE ? gf(aC, 1)  : na, "c1")
+
+plot(preFE ? gt(2)      : na, "t2")
+plot(preFE ? gf(aH, 2)  : na, "h2")
+plot(preFE ? gf(aL, 2)  : na, "l2")
+plot(preFE ? gf(aC, 2)  : na, "c2")
+
+plot(preFE ? gt(3)      : na, "t3")
+plot(preFE ? gf(aH, 3)  : na, "h3")
+plot(preFE ? gf(aL, 3)  : na, "l3")
+plot(preFE ? gf(aC, 3)  : na, "c3")
+
+plot(preFE ? gt(4)      : na, "t4")
+plot(preFE ? gf(aH, 4)  : na, "h4")
+plot(preFE ? gf(aL, 4)  : na, "l4")
+plot(preFE ? gf(aC, 4)  : na, "c4")
+
+// Sixth slot exists only to detect a parent bar carrying more than five
+// lower-timeframe bars. It is never expected to be non-na at 1m under 5m.
+plot(preFE ? gt(5)      : na, "t5")
+plot(preFE ? gf(aH, 5)  : na, "h5")
+plot(preFE ? gf(aL, 5)  : na, "l5")
+plot(preFE ? gf(aC, 5)  : na, "c5")
