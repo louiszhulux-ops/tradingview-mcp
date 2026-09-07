@@ -5,6 +5,10 @@ PHASE 16 DERIVATION AUDIT
   derived trader_v2/p16/executed/V53_P16_OOS_BUILD.pine
           sha256 5c21acfab1b0c832aaa562a0afc84c94e595da2318f2366dd153c1d08172b333
 
+0. PINNED SHA-256 ASSERTIONS (hard fail)
+  [PASS] source   sha256 == 2dafbafd5f6731e93c6fc4a2d55048bb32d5c0d75581ed7fffd877a0cf58efe6
+  [PASS] derived  sha256 == 5c21acfab1b0c832aaa562a0afc84c94e595da2318f2366dd153c1d08172b333
+
 1. FULL UNIFIED DIFF
    --- executed_baseline
    +++ p16_oos_build

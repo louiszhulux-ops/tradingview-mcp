@@ -143,6 +143,47 @@ multi-fill clusters.
 throughout. The primary unit of analysis is the **alternative-identity event** (the more
 conservative of the two, since it collapses more).
 
+### Event outcome rule — frozen before accumulation
+
+An event may contain more than one fill, and those fills **can disagree**. This is not
+hypothetical: in the committed Phase 15 baseline (`p15/runs/BASE_pooled.txt`, 58 fills,
+37 alternative events), **two alternative events contain both a WIN and a LOSS** — both
+MGC1! short 1m, at entries 4517.7 and 4404. In each, two sweeps converged on one entry price
+with different sweep extremes, hence different stops, hence opposite outcomes. The same two
+events are mixed under the primary identity as well.
+
+The classification rule is therefore fixed now, before any OOS data exists:
+
+> **An event counts as a WIN only if every fill belonging to it is a WIN.**
+> Any LOSS, any timeout, or any mixture of outcomes within an event makes it **NON-WIN**.
+
+| fills in the event | event |
+|---|---|
+| all WIN | **WIN** |
+| all LOSS | NON-WIN |
+| all timeout | NON-WIN |
+| WIN + LOSS | **NON-WIN** |
+| WIN + timeout | **NON-WIN** |
+| any other mixture | NON-WIN |
+
+Explicitly **not** used, and not to be substituted later: "any fill wins", majority vote, best
+outcome, average R, or execution-level win status.
+
+**Rationale.** The alternative identity exists to stop clustered executions being counted as
+independent opportunities. A permissive rule would defeat that: one favourable execution would
+promote a whole market event to "winning" even though another execution arising from the same
+event lost real money. The all-must-win rule is the conservative reading, and it keeps the unit
+of analysis honest — an event is a winning *independent opportunity* only when every way the
+strategy expressed that event resolved as a win.
+
+The rule is deliberately unfavourable to the hypothesis. On the Phase 15 baseline it yields
+**5** winning alternative events rather than the 7 an "any fill wins" rule would give. That
+figure is stated here only to show the rule was chosen with its direction of effect known, and
+is **not** validation evidence.
+
+**Phase 15 results are not restated or recomputed under this rule.** They are research history
+and remain exactly as recorded.
+
 ---
 
 ## 6. Statistical design — fixed now
@@ -167,7 +208,14 @@ would be circular. The realized OOS payoff geometry is reported descriptively.
 
 ### Test
 
-One-sided **exact binomial** on winning alternative-identity events, α = 0.05.
+One-sided **exact binomial** on winning alternative-identity events, α = 0.05. Event outcomes
+are classified by the frozen rule in §5.
+
+**Family-wise error, stated explicitly.** Two one-sided tests are run at α = 0.05 each — an
+upper test for "supportive" and a lower test for "against". Each individual verdict is therefore
+controlled at 5%, but the probability of reaching *some* rejection under H₀ is up to **10%**.
+This is accepted deliberately rather than corrected, because the two verdicts answer different
+questions and each is reported with its own error rate. No α is adjusted after seeing results.
 
 ### Is the ~80-event target defensible?
 
@@ -225,11 +273,24 @@ critical values move in integer steps. This is expected, not an error.
 automatically "evidence insufficient / inconclusive."** Below 40 events, power against even a
 large edge is under 0.56.
 
+**This floor deliberately also forecloses a decisive "against" verdict.** A run of, say, 0 wins
+in 35 events would formally reject p ≥ p*, yet it is still classified insufficient. That is
+intentional and pre-registered: at N < 40 the study is not powered enough for a directional
+conclusion in *either* direction, and allowing a negative verdict but not a positive one would
+be asymmetric. The cost is that a genuinely dead strategy may be recorded as "inconclusive"
+rather than "refuted".
+
 ### Uncertainty reporting
 
 A **Clopper–Pearson 95% interval** on the alternative-event win rate is reported alongside the
 point estimate, plus the same for the primary identity and for execution-level fills
-(descriptive). Total R is reported with the caveat that it is nearly determined by the win count
+(descriptive).
+
+The implementation is pre-registered as `trader_v2/p16/p16_analyze.py::clopper_pearson`:
+the exact (Beta) interval, with `lower = 0` when `k = 0`, `upper = 1` when `k = n`, and the
+interior bounds solved to 1e-12 by bisection on the binomial tail — `lower` solves
+`P(X ≥ k │ p) = α/2` and `upper` solves `P(X ≤ k │ p) = α/2`, α = 0.05. No normal, Wilson,
+Agresti–Coull or bootstrap interval is substituted. Total R is reported with the caveat that it is nearly determined by the win count
 given the near-two-point R distribution.
 
 ---
@@ -300,6 +361,15 @@ execution audit.
    expiries, timeouts, wins, losses, post-drag R, drawdown, assertions, dropped states.
 6. Do not alter anything between cells.
 
+> **Capture warning — the fold label will read `ALL`, not `OOS`.** Keeping the artifact diff to
+> two lines means `foldName2` has no branch for `foldSel = 5`, so every Phase 16 ledger row and
+> PERF header renders the fold as `"ALL"`. That is the same string `foldSel = 4` produces for the
+> whole pre-FE history. **A Phase 16 capture file is identified by its filename and by the
+> recorded coverage dates, never by the fold field.** The analyser therefore ignores the fold
+> label entirely and enforces the window from the entry timestamps instead. Do not "fix" the
+> artifact to correct the label: that would change its SHA-256 and, under §8, invalidate the
+> accumulation period.
+
 ### Integrity checks — fail loudly
 
 The run **fails loudly** and triggers a hard stop if: the sweep engine differs; frozen inputs
@@ -323,6 +393,15 @@ the Phase 15 F1 lesson is not re-litigated.
 - `trader_v2/p16/PHASE16_PROTOCOL.md` — this document, committed **before** execution
 - `trader_v2/p16/executed/V53_P16_OOS_BUILD.pine` — Phase 16 execution artifact
 - `trader_v2/p16/derive_p16_oos.py`, `verify_p16_oos.py`, `P16_DERIVATION_AUDIT.txt`
+- `trader_v2/p16/p16_analyze.py` — **the pre-registered analyser**, frozen before any OOS data
+  exists. It implements the event identities, the §5 event outcome rule, the exact binomial test,
+  the Clopper–Pearson intervals, the power floor and the §7 decision framework. It selects
+  nothing, rejects any fill outside the window, rejects unexpected instrument/direction/LTF
+  combinations, asserts the artifact SHA-256, and refuses to issue a verdict for any window other
+  than the pre-registered one.
+- `trader_v2/p16/test_p16_analyze.py` — its tests, run against **historical Phase 13F fixtures
+  only**; a test asserts every fixture timestamp is strictly before `FE`.
+- `trader_v2/p16/phase16_manifest.json` — frozen hashes and boundaries
 - `trader_v2/p16/PHASE16_EXECUTION_AUDIT.md` — after execution
 - `trader_v2/p16/PHASE16_OOS_REPORT.md` — after execution, with the 15 required sections:
   provenance; validation data definition; coverage; integrity checks; funnel; execution-level

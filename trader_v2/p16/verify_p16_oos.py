@@ -8,6 +8,15 @@ import hashlib, difflib, re, sys
 
 SRC="trader_v2/p15/executed/V53_EXECUTED_BUILD.pine"
 DST="trader_v2/p16/executed/V53_P16_OOS_BUILD.pine"
+
+# Pinned absolute hashes. The relative diff checks below prove only that DST
+# differs from SRC by the authorised change; without these two assertions a
+# consistent edit to BOTH files would still pass. Section 8 of the protocol
+# invalidates the accumulation period on any change to the derived artifact,
+# so that condition is asserted here rather than left to a manual step.
+SRC_SHA_EXPECTED="2dafbafd5f6731e93c6fc4a2d55048bb32d5c0d75581ed7fffd877a0cf58efe6"
+DST_SHA_EXPECTED="5c21acfab1b0c832aaa562a0afc84c94e595da2318f2366dd153c1d08172b333"
+
 sha=lambda p: hashlib.sha256(open(p,'rb').read()).hexdigest()
 a=open(SRC).read().splitlines(); b=open(DST).read().splitlines()
 ok=True
@@ -16,10 +25,27 @@ def chk(cond,label):
     ok &= bool(cond); print(f"  [{'PASS' if cond else 'FAIL'}] {label}")
 
 print("PHASE 16 DERIVATION AUDIT\n")
-print(f"  source  {SRC}\n          sha256 {sha(SRC)}")
-print(f"  derived {DST}\n          sha256 {sha(DST)}\n")
+src_sha=sha(SRC); dst_sha=sha(DST)
+print(f"  source  {SRC}\n          sha256 {src_sha}")
+print(f"  derived {DST}\n          sha256 {dst_sha}\n")
 
-print("1. FULL UNIFIED DIFF")
+print("0. PINNED SHA-256 ASSERTIONS (hard fail)")
+chk(src_sha==SRC_SHA_EXPECTED,
+    f"source   sha256 == {SRC_SHA_EXPECTED}" +
+    ("" if src_sha==SRC_SHA_EXPECTED else f"  <-- GOT {src_sha}"))
+chk(dst_sha==DST_SHA_EXPECTED,
+    f"derived  sha256 == {DST_SHA_EXPECTED}" +
+    ("" if dst_sha==DST_SHA_EXPECTED else f"  <-- GOT {dst_sha}"))
+if not ok:
+    print("\n" + "="*70)
+    print("DERIVATION AUDIT: FAIL - pinned hash mismatch. HARD STOP.")
+    print("Per PHASE16_PROTOCOL.md section 8, a change to the derived artifact")
+    print("INVALIDATES the accumulation period. Do not proceed, do not repair")
+    print("silently, and do not re-derive without recording why.")
+    print("="*70)
+    sys.exit(1)
+
+print("\n1. FULL UNIFIED DIFF")
 d=[x for x in difflib.unified_diff(a,b,"executed_baseline","p16_oos_build",lineterm="",n=0)]
 for x in d: print("   "+x)
 changed=[x for x in d if x.startswith(('+','-')) and not x.startswith(('+++','---'))]

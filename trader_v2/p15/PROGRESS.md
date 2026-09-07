@@ -203,3 +203,31 @@ See p15/PHASE15_HARD_STOP.md. Nothing repaired, nothing injected.
   change date. No carve-out.
 - At the boundary, execute p16/PHASE16_PROTOCOL.md section 9 in order, starting with
   SHA re-verification and a full re-run of p16/verify_p16_oos.py.
+
+## Phase 16 — pre-accumulation protocol audit and fixes (2026-09-07)
+
+Audit of the pre-registered Phase 16 artifacts found three required fixes. All three are now
+applied. **No OOS run occurred, no market data was fetched, no TradingView connection was made,
+and the OOS artifact's SHA-256 is unchanged at `5c21acfa…`.**
+
+- **B1 — verifier hardened.** `verify_p16_oos.py` previously printed both SHA-256 values without
+  asserting either, so it proved only a *relative* property; a consistent edit to both the
+  baseline and the derived artifact would have passed. It now asserts both pinned hashes as hard
+  checks and exits non-zero with a §8 hard-stop message. Both failure modes were demonstrated on
+  mutated copies in a temporary tree.
+- **B2 — event outcome rule frozen.** The primary statistic was "winning alternative-identity
+  events", but the protocol never said how to classify an event whose fills disagree. Two of the
+  37 baseline alternative events do exactly that (MGC1! short 1m, entries 4517.7 and 4404).
+  The rule is now fixed in protocol §5: **an event is a WIN only if every fill in it is a WIN**;
+  any LOSS, timeout or mixture is NON-WIN. On the baseline this gives 5 winning alternative
+  events rather than 7 under a permissive rule — recorded to show the direction of effect was
+  known when the rule was chosen. Phase 15 results are unchanged and are not recomputed.
+- **B3 — analyser pre-registered.** `p16_analyze.py` now exists and is frozen before any OOS data.
+  It is mechanical, rejects out-of-window and unexpected cells, asserts the artifact hash, and
+  refuses to issue a verdict for any window but the pre-registered one. 43 tests, run against
+  historical Phase 13F fixtures only.
+
+Also applied: family-wise error stated explicitly (10% across the two one-sided tests); the N<40
+floor documented as deliberately foreclosing a decisive "against"; the `foldName2 = "ALL"`
+capture warning moved to §9 where the capture happens; Clopper–Pearson implementation
+pre-registered; `phase16_manifest.json` created with every frozen hash and boundary.
