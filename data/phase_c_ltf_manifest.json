@@ -1,0 +1,118 @@
+{
+  "schema_version": "1.0.0",
+  "artifact": "phase_c_ltf_candidate_extraction",
+  "status": "CANDIDATE -- NOT FROZEN, NOT AUTHORITATIVE, NOT GROUND TRUTH",
+  "status_detail": "P-9 candidate extraction. Structurally valid and free of post-FE data, but the availability mask does NOT reproduce the P-7 historical observation: the trailing 100,000-bar LTF window has slid forward with chart growth since the original research run, so the leading parent bars the research saw are no longer served. OHLC value parity against the original run is unproven because no historical LTF value artifact exists.",
+  "extraction_date_utc": "2026-09-07",
+  "frozen_fe_boundary": {
+    "value_ms": 1788134400000,
+    "value_s": 1788134400,
+    "utc": "2026-08-31T00:00:00Z",
+    "convention": "exclusive (time < FE)",
+    "sources": [
+      "trader_v2/V53_ltf_sequence.pine:33",
+      "trader_v2/p15/executed/V53_EXECUTED_BUILD.pine:31",
+      "bot/guards.py FE_MS",
+      "trader_v2/p16/p16_analyze.py OOS_START_MS"
+    ]
+  },
+  "parent_range": {
+    "from_utc": "2026-05-24T22:00:00Z",
+    "to_utc": "2026-08-30T23:55:00Z",
+    "source": [
+      "data/phase_c/MGC1__5m.csv",
+      "data/phase_c/MNQ1__5m.csv"
+    ]
+  },
+  "extraction": {
+    "mechanism": "request.security_lower_tf(syminfo.tickerid, \"1\", <field>)",
+    "requested_fields": [
+      "open",
+      "high",
+      "low",
+      "close",
+      "time"
+    ],
+    "persisted_fields": [
+      "timestamp",
+      "high",
+      "low",
+      "close"
+    ],
+    "note_open": "open is requested to preserve V53's exact five-field request shape; never persisted",
+    "study": "P9 LTF EXTRACTION -- extraction-only, zero strategy semantics",
+    "chart": "P2NtY6fg (disposable research layout)",
+    "protected_chart_2d43Iesr": "untouched -- never opened, attached to, or read during P-9",
+    "cap_behaviour": "natural; no pagination, stitching, unioning or client-side cap imposed",
+    "post_fe_protection": "parent-level gate (time < FE) in Pine; no post-FE LTF value ever plotted"
+  },
+  "artifacts": [
+    {
+      "path": "data/phase_c_ltf/MGC1__1m.csv",
+      "instrument": "MGC1!",
+      "lower_timeframe": "1m",
+      "parent_timeframe": "5m",
+      "fields": [
+        "timestamp",
+        "high",
+        "low",
+        "close"
+      ],
+      "sha256": "eeba6ffb7fb44a92b5be9d9ac8f0330cbf85d9a9d8b45d9c90a373cdf134af7b",
+      "bytes": 2900719,
+      "rows": 92539,
+      "first_timestamp": 1779889020,
+      "first_timestamp_utc": "2026-05-27T13:37:00Z",
+      "last_timestamp": 1788134340,
+      "last_timestamp_utc": "2026-08-30T23:59:00Z",
+      "post_fe_rows": 0,
+      "parent_bars_total_pre_fe": 19218,
+      "parent_bars_with_ltf": 18509,
+      "parent_bars_without_ltf": 709,
+      "ltf_per_parent_distribution": {
+        "3": 1,
+        "4": 4,
+        "5": 18504
+      },
+      "cov_first_current_utc": "2026-05-27T13:35:00Z",
+      "cov_first_historical_utc": "2026-05-27T02:15:00Z",
+      "empty_parents_current": 709,
+      "empty_parents_historical_p7": 573,
+      "availability_mask_parity_with_p7": false,
+      "empty_parent_delta_vs_p7": 136
+    },
+    {
+      "path": "data/phase_c_ltf/MNQ1__1m.csv",
+      "instrument": "MNQ1!",
+      "lower_timeframe": "1m",
+      "parent_timeframe": "5m",
+      "fields": [
+        "timestamp",
+        "high",
+        "low",
+        "close"
+      ],
+      "sha256": "7e4eab7fb51c2f801db17d5452fe3d6dcbcc5fe81af97f260110091361dac55a",
+      "bytes": 3224916,
+      "rows": 92534,
+      "first_timestamp": 1779889560,
+      "first_timestamp_utc": "2026-05-27T13:46:00Z",
+      "last_timestamp": 1788134340,
+      "last_timestamp_utc": "2026-08-30T23:59:00Z",
+      "post_fe_rows": 0,
+      "parent_bars_total_pre_fe": 19200,
+      "parent_bars_with_ltf": 18507,
+      "parent_bars_without_ltf": 693,
+      "ltf_per_parent_distribution": {
+        "4": 1,
+        "5": 18506
+      },
+      "cov_first_current_utc": "2026-05-27T13:45:00Z",
+      "cov_first_historical_utc": "2026-05-27T02:20:00Z",
+      "empty_parents_current": 693,
+      "empty_parents_historical_p7": 556,
+      "availability_mask_parity_with_p7": false,
+      "empty_parent_delta_vs_p7": 137
+    }
+  ]
+}
