@@ -1,0 +1,207 @@
+//@version=6
+// =====================================================================
+// V35 FADE PROD -- the V33 finding, executed under LucidFlex rules.
+//
+// Fade long-side momentum triggers (short), stop 1.5xATR, target 2R.
+// Sizing is BUFFER-BASED (V19/V22): risk a fraction of the distance to the
+// MLL floor, so the floor can be approached but never crossed.
+// The MLL trails the highest CLOSING balance and locks at start+$100 once
+// the closing balance clears start + MLL + $100 (verified LucidFlex rule).
+//
+// Up to 4 concurrent fades, each with its own entry id and its own exit, so
+// every position carries a protective stop from the bar it is opened on.
+// =====================================================================
+strategy("V35 FADE PROD", overlay=true, initial_capital=50000,
+     currency=currency.USD, default_qty_type=strategy.fixed, default_qty_value=1,
+     pyramiding=4, commission_type=strategy.commission.cash_per_order,
+     commission_value=0.52, slippage=1, calc_on_every_tick=false)
+
+brkLen  = input.int(20, "break lookback", group="Trigger")
+swLen   = input.int(10, "swing pivot len", group="Trigger")
+lookK   = input.int(6,  "sweep reclaim window", group="Trigger")
+emaFL   = input.int(20, "ema fast", group="Trigger")
+emaSL   = input.int(50, "ema slow", group="Trigger")
+vwapM   = input.int(5,  "bars beyond vwap", group="Trigger")
+
+stopA   = input.float(1.5, "stop (xATR)", group="Risk")
+tgtR    = input.float(2.0, "target (xR)", group="Risk")
+bufFrac = input.float(0.010, "risk = this fraction of MLL buffer", group="Risk")
+maxCtr  = input.int(40,  "max contracts", group="Risk")
+maxSlot = input.int(4,   "max concurrent fades", minval=1, maxval=4, group="Risk")
+
+startBal = input.float(50000, "account start ($)", group="Prop")
+mll      = input.float(2000,  "max loss limit ($)", group="Prop")
+tgtUSD   = input.float(3000,  "profit target ($)", group="Prop")
+lockOff  = input.float(100,   "lock offset ($)", group="Prop")
+dayTgtN  = input.int(8,       "spread target over N days", group="Prop")
+dayStopR = input.float(8.0,   "daily stop (xRisk)", group="Prop")
+research = input.bool(false,  "RESEARCH mode: no pass/bust gate, qty=1", group="Research")
+maxHold  = input.int(0,       "max bars in trade (0=off)", group="Research")
+
+atr = ta.atr(14)
+eF  = ta.ema(close, emaFL)
+eS  = ta.ema(close, emaSL)
+vw  = ta.vwap(hlc3)
+
+hiLvl = ta.highest(high, brkLen)[1]
+loLvl = ta.lowest(low,  brkLen)[1]
+brkUp = not na(hiLvl) and close > hiLvl and close[1] <= hiLvl
+
+ph = ta.pivothigh(high, swLen, swLen)
+pl = ta.pivotlow(low,  swLen, swLen)
+var float lastPL = na
+if not na(pl)
+    lastPL := pl
+var int   swpLoBar = -99999
+var float swpLoLvl = na
+if not na(lastPL) and low < lastPL
+    swpLoBar := bar_index
+    swpLoLvl := lastPL
+swpUp = not na(swpLoLvl) and (bar_index - swpLoBar) <= lookK and close > swpLoLvl and close[1] <= swpLoLvl
+
+xUpF  = ta.crossover(close, eF)
+pulUp = eF > eS and xUpF
+xUpV  = ta.crossover(close, vw)
+bsAbv = ta.barssince(close > vw)
+vwUp  = xUpV and nz(bsAbv[1], 999) >= vwapM
+
+fire = brkUp or swpUp or pulUp or vwUp
+
+// ---------- LucidFlex account state (closing balances, end of day) ----------
+bal    = startBal + strategy.netprofit
+newD   = ta.change(time("D")) != 0
+var float peakBal  = startBal
+var float floorBal = startBal - mll
+var bool  locked   = false
+var float dayStart = startBal
+var int   nDays    = 0
+var float bestDay  = 0.0
+var float sumDayUp = 0.0
+var bool  passed   = false
+var bool  busted   = false
+var int   passBar  = 0
+
+if newD and bar_index > 0
+    dp = bal - dayStart
+    if dp > bestDay
+        bestDay := dp
+    if dp > 0
+        sumDayUp := sumDayUp + dp
+    nDays := nDays + 1
+    peakBal := math.max(peakBal, bal)
+    if not locked
+        floorBal := peakBal - mll
+        if bal >= startBal + mll + lockOff
+            locked  := true
+            floorBal := startBal + lockOff
+    if bal <= floorBal
+        busted := true
+    if not passed and not busted and bal >= startBal + tgtUSD and bestDay <= 0.5 * (bal - startBal)
+        passed  := true
+        passBar := nDays
+    dayStart := bal
+
+buffer  = math.max(0.0, bal - floorBal)
+riskNow = bufFrac * buffer
+dayPnL  = bal - dayStart
+dayTgt  = tgtUSD / math.max(dayTgtN, 2)
+
+ptVal = na(syminfo.pointvalue) or syminfo.pointvalue <= 0 ? 1.0 : syminfo.pointvalue
+d     = stopA * atr
+
+sizeFor(dd) =>
+    rpc = dd * ptVal
+    int n = 0
+    if rpc > 0
+        n := int(math.floor(riskNow / rpc))
+        if n < 1 and buffer > rpc * 3.0
+            n := 1
+        n := math.min(n, maxCtr)
+    n
+
+// rebuild slot occupancy from the strategy's own open trades
+var bool[] slotOpen = array.new_bool(4, false)
+for s = 0 to 3
+    array.set(slotOpen, s, false)
+if strategy.opentrades > 0
+    for i = 0 to strategy.opentrades - 1
+        eid = strategy.opentrades.entry_id(i)
+        if eid == "F0"
+            array.set(slotOpen, 0, true)
+        else if eid == "F1"
+            array.set(slotOpen, 1, true)
+        else if eid == "F2"
+            array.set(slotOpen, 2, true)
+        else if eid == "F3"
+            array.set(slotOpen, 3, true)
+
+tradeOK = research ? true : (not passed and not busted and dayPnL < dayTgt and dayPnL > -dayStopR * math.max(riskNow, 1.0) and buffer > 0)
+
+if fire and tradeOK and d > 0 and not na(atr)
+    int free = -1
+    for s = 0 to maxSlot - 1
+        if free < 0 and not array.get(slotOpen, s)
+            free := s
+    if free >= 0
+        n = research ? 1 : sizeFor(d)
+        if n > 0
+            sp = close + d
+            tp = close - tgtR * d
+            if free == 0
+                strategy.entry("F0", strategy.short, qty=n)
+                strategy.exit("x0", "F0", stop=sp, limit=tp)
+            else if free == 1
+                strategy.entry("F1", strategy.short, qty=n)
+                strategy.exit("x1", "F1", stop=sp, limit=tp)
+            else if free == 2
+                strategy.entry("F2", strategy.short, qty=n)
+                strategy.exit("x2", "F2", stop=sp, limit=tp)
+            else
+                strategy.entry("F3", strategy.short, qty=n)
+                strategy.exit("x3", "F3", stop=sp, limit=tp)
+
+plot(fire ? 1 : 0,    "dbg_fire",    display=display.data_window)
+plot(tradeOK ? 1 : 0, "dbg_tradeOK", display=display.data_window)
+plot(buffer,          "dbg_buffer",  display=display.data_window)
+plot(riskNow,         "dbg_riskNow", display=display.data_window)
+plot(d,               "dbg_stopDist",display=display.data_window)
+plot(ptVal,           "dbg_ptVal",   display=display.data_window)
+plot(sizeFor(d),      "dbg_n",       display=display.data_window)
+plot(strategy.closedtrades, "dbg_closed", display=display.data_window)
+
+// time stop: close anything held longer than maxHold bars
+if maxHold > 0 and strategy.opentrades > 0
+    for i = 0 to strategy.opentrades - 1
+        if bar_index - strategy.opentrades.entry_bar_index(i) >= maxHold
+            strategy.close(strategy.opentrades.entry_id(i), comment="time")
+
+if not research and (passed or busted) and strategy.position_size != 0
+    strategy.close_all(comment="eval over")
+
+var table tb = table.new(position.top_right, 2, 12, border_width=1)
+if barstate.islastconfirmedhistory or barstate.islast
+    consist = bal - startBal > 0 ? bestDay / (bal - startBal) : na
+    table.cell(tb, 0, 0, "V35 FADE PROD", text_color=color.white, bgcolor=color.navy, text_size=size.tiny)
+    table.cell(tb, 1, 0, syminfo.ticker, text_color=color.white, bgcolor=color.navy, text_size=size.tiny)
+    table.cell(tb, 0, 1, "net profit",  text_size=size.tiny)
+    table.cell(tb, 1, 1, str.tostring(strategy.netprofit, "#.00"), text_size=size.tiny)
+    table.cell(tb, 0, 2, "trades",      text_size=size.tiny)
+    table.cell(tb, 1, 2, str.tostring(strategy.closedtrades), text_size=size.tiny)
+    table.cell(tb, 0, 3, "win%",        text_size=size.tiny)
+    table.cell(tb, 1, 3, strategy.closedtrades > 0 ? str.tostring(100.0 * strategy.wintrades / strategy.closedtrades, "#.#") : "-", text_size=size.tiny)
+    table.cell(tb, 0, 4, "profit factor", text_size=size.tiny)
+    table.cell(tb, 1, 4, str.tostring(strategy.grossloss > 0 ? strategy.grossprofit / strategy.grossloss : na, "#.###"), text_size=size.tiny)
+    table.cell(tb, 0, 5, "max DD (strat)", text_size=size.tiny)
+    table.cell(tb, 1, 5, str.tostring(strategy.max_drawdown, "#.00"), text_size=size.tiny)
+    table.cell(tb, 0, 6, "days",        text_size=size.tiny)
+    table.cell(tb, 1, 6, str.tostring(nDays), text_size=size.tiny)
+    table.cell(tb, 0, 7, "MLL floor",   text_size=size.tiny)
+    table.cell(tb, 1, 7, str.tostring(floorBal, "#.00") + (locked ? " LOCKED" : ""), text_size=size.tiny)
+    table.cell(tb, 0, 8, "best day / total", text_size=size.tiny)
+    table.cell(tb, 1, 8, str.tostring(consist, "#.###"), text_size=size.tiny)
+    table.cell(tb, 0, 9, "OUTCOME",     text_size=size.tiny)
+    table.cell(tb, 1, 9, passed ? "PASS day " + str.tostring(passBar) : busted ? "BUST" : "running", text_size=size.tiny, bgcolor=passed ? color.new(color.green, 50) : busted ? color.new(color.red, 50) : color.new(color.gray, 50))
+    table.cell(tb, 0, 10, "avg R/trade", text_size=size.tiny)
+    table.cell(tb, 1, 10, strategy.closedtrades > 0 ? str.tostring(strategy.netprofit / strategy.closedtrades, "#.00") + " $" : "-", text_size=size.tiny)
+    table.cell(tb, 0, 11, "bars",       text_size=size.tiny)
+    table.cell(tb, 1, 11, str.tostring(bar_index), text_size=size.tiny)

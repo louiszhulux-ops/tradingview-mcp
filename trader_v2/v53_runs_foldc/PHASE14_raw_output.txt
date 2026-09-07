@@ -1,0 +1,59 @@
+======================================================================================================================
+FOLD C -- 8-CELL EXECUTION-LEVEL RESULTS
+======================================================================================================================
+cell              bars   cov  swp CHOCH rtst BOS FVG fill W Ls TO     wr  Rpre   Rpost      avg      med mcL    ddR   ddUSD      USD
+------------------------------------------------------------------------------------------------------------------------------------
+MGC L 1m C        4164  4164  179   155  132   4   3    1 0  1  0   0.0%    -1  -1.149  -1.1490  -1.1494   1  1.149   23.08   -23.08
+MGC L 3m C        4164  4164  179    72   58   6   3    0 0  0  0      -     0   0.000        -        -   0  0.000    0.00     0.00
+MGC S 1m C        4164  4164  214   205  171   9   7    4 0  4  0   0.0%    -4  -4.154  -1.0385  -1.0327   4  4.154  353.07  -353.07
+MGC S 3m C        4164  4164  214    94   59   1   1    0 0  0  0      -     0   0.000        -        -   0  0.000    0.00     0.00
+MNQ L 1m C        4164  4164  209   187  178   3   2    2 0  2  0   0.0%    -2  -2.057  -1.0285  -1.0285   2  2.057  216.41  -216.41
+MNQ L 3m C        4164  4164  209    74   52   0   0    0 0  0  0      -     0   0.000        -        -   0  0.000    0.00     0.00
+MNQ S 1m C        4164  4164  257   230  198   9   7    6 2  4  0  33.3%     6   5.724   0.9540  -1.0319   2  2.146  194.67   594.17
+MNQ S 3m C        4164  4164  257   111   75  10  10    5 1  4  0  20.0%     1   0.794   0.1588  -1.0338   4  4.171  364.30    62.65
+
+  FOLD C H1 (1m): fills 13 | W 2 L 11 | wr  15.4% | Rpre -1 | Rpost  -1.636 | avg -0.1258 | $    +1.61
+  FOLD C H2 (3m): fills  5 | W 1 L 4 | wr  20.0% | Rpre +1 | Rpost  +0.794 | avg +0.1588 | $   +62.65
+  FOLD C TOTAL:      fills 18 | W 3 L 15 | wr  16.7% | Rpost  -0.842 | $   +64.26
+
+======================================================================================================================
+FUNNEL -- FOLD C vs A+B
+======================================================================================================================
+A+B  1m          sweeps  2977 | ->CHOCH  2547  85.6% | ->retest 2295  90.1% | ->BOS+disp  82  3.57% | ->FVG  57  69.5% | ->fill  28  49.1% | sweep->fill  0.94%
+C    1m          sweeps   859 | ->CHOCH   777  90.5% | ->retest  679  87.4% | ->BOS+disp  25  3.68% | ->FVG  19  76.0% | ->fill  13  68.4% | sweep->fill  1.51%
+A+B  3m          sweeps  2977 | ->CHOCH  1129  37.9% | ->retest  851  75.4% | ->BOS+disp  57  6.70% | ->FVG  36  63.2% | ->fill  12  33.3% | sweep->fill  0.40%
+C    3m          sweeps   859 | ->CHOCH   351  40.9% | ->retest  244  69.5% | ->BOS+disp  17  6.97% | ->FVG  14  82.4% | ->fill   5  35.7% | sweep->fill  0.58%
+
+======================================================================================================================
+EVENT CLUSTERING -- Phase 13G identities applied verbatim
+======================================================================================================================
+  FOLD C             primary      all : execution N 18 | clusters 12 | multi-fill  6 | largest 2 | fills in multi 12 ( 66.7%)
+  FOLD C             primary      1m  : execution N 13 | clusters  9 | multi-fill  4 | largest 2 | fills in multi  8 ( 61.5%)
+  FOLD C             primary      3m  : execution N  5 | clusters  3 | multi-fill  2 | largest 2 | fills in multi  4 ( 80.0%)
+  FOLD C             alternative  all : execution N 18 | clusters 10 | multi-fill  8 | largest 2 | fills in multi 16 ( 88.9%)
+  FOLD C             alternative  1m  : execution N 13 | clusters  7 | multi-fill  6 | largest 2 | fills in multi 12 ( 92.3%)
+  FOLD C             alternative  3m  : execution N  5 | clusters  3 | multi-fill  2 | largest 2 | fills in multi  4 ( 80.0%)
+
+  A+B (13G control)  primary      all : execution N 40 | clusters 31 | multi-fill  9 | largest 2 | fills in multi 18 ( 45.0%)
+  A+B (13G control)  primary      1m  : execution N 28 | clusters 22 | multi-fill  6 | largest 2 | fills in multi 12 ( 42.9%)
+  A+B (13G control)  primary      3m  : execution N 12 | clusters  9 | multi-fill  3 | largest 2 | fills in multi  6 ( 50.0%)
+  A+B (13G control)  alternative  all : execution N 40 | clusters 27 | multi-fill 11 | largest 3 | fills in multi 24 ( 60.0%)
+  A+B (13G control)  alternative  1m  : execution N 28 | clusters 18 | multi-fill  8 | largest 3 | fills in multi 18 ( 64.3%)
+  A+B (13G control)  alternative  3m  : execution N 12 | clusters  9 | multi-fill  3 | largest 2 | fills in multi  6 ( 50.0%)
+
+
+======================================================================================================================
+STATISTICAL TREATMENT -- execution level ONLY; event level reported as N, not as an interval
+======================================================================================================================
+  Fold C H1 (1m)   wins 2/13  =  15.4%  90% Wilson [  5.2%, 37.5%]  mean -0.107 sd 2.25 CI [-1.135,+0.921]
+  Fold C H2 (3m)   wins 1/5   =  20.0%  90% Wilson [  4.6%, 56.5%]  mean +0.170 sd 2.68 CI [-1.804,+2.144]
+  Fold C total     wins 3/18  =  16.7%  90% Wilson [  6.9%, 35.2%]  mean -0.030 sd 2.30 CI [-0.922,+0.862]
+  A+B H1 (1m)      wins 3/28  =  10.7%  90% Wilson [  4.4%, 24.0%]  mean -0.387 sd 1.89 CI [-0.975,+0.200]
+  A+B H2 (3m)      wins 3/12  =  25.0%  90% Wilson [ 10.5%, 48.7%]  mean +0.470 sd 2.71 CI [-0.819,+1.759]
+  A+B total        wins 6/40  =  15.0%  90% Wilson [  8.0%, 26.5%]  mean -0.130 sd 2.17 CI [-0.694,+0.434]
+
+  Breakeven win rate at +5R/-1R = 16.7%.
+  These are EXECUTION-LEVEL intervals and assume independence between fills, which the
+  clustering above shows is violated (88.9% of Fold C fills sit in multi-fill clusters).
+  No event-level confidence interval is computed: 10 alternative-identity events, of which
+  8 are 1m and 3 are 3m, does not support one.

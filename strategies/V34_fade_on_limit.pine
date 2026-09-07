@@ -1,0 +1,207 @@
+//@version=6
+// V34 FADE-ON-LIMIT -- can a resting limit recover the cost that eats the edge?
+// V27 found limit entries starve on CONTINUATION signals: price leaves without
+// you. A fade is the opposite case -- the push you are fading is what fills you.
+// Measures fill rate AND outcome for four offsets, with the follow control.
+// RESULT: improves on only 5/8 markets (t=+0.89 at 0.5xATR). NOT adopted.
+indicator("V34 FADE ON LIMIT", overlay=true)
+
+trigDir = input.int(1,  "side  1=long-trig  -1=short-trig", minval=-1, maxval=1, group="Trigger")
+brkLen  = input.int(20, "break lookback", group="Trigger")
+swLen   = input.int(10, "swing pivot len", group="Trigger")
+lookK   = input.int(6,  "sweep reclaim window", group="Trigger")
+emaFL   = input.int(20, "ema fast", group="Trigger")
+emaSL   = input.int(50, "ema slow", group="Trigger")
+vwapM   = input.int(5,  "bars beyond vwap", group="Trigger")
+
+stopA   = input.float(1.5, "stop (xATR)", group="Barriers")
+tgtR    = input.float(2.0, "target (xR)", group="Barriers")
+maxBars = input.int(288,   "timeout bars", group="Barriers")
+limBars = input.int(6,     "limit valid (bars)", group="Limit")
+o0      = input.float(0.00, "offset 0 (xATR)", group="Limit")
+o1      = input.float(0.25, "offset 1 (xATR)", group="Limit")
+o2      = input.float(0.50, "offset 2 (xATR)", group="Limit")
+o3      = input.float(0.75, "offset 3 (xATR)", group="Limit")
+
+atr = ta.atr(14)
+eF  = ta.ema(close, emaFL)
+eS  = ta.ema(close, emaSL)
+vw  = ta.vwap(hlc3)
+
+hiLvl = ta.highest(high, brkLen)[1]
+loLvl = ta.lowest(low,  brkLen)[1]
+brkUp = not na(hiLvl) and close > hiLvl and close[1] <= hiLvl
+brkDn = not na(loLvl) and close < loLvl and close[1] >= loLvl
+
+ph = ta.pivothigh(high, swLen, swLen)
+pl = ta.pivotlow(low,  swLen, swLen)
+var float lastPH = na
+var float lastPL = na
+if not na(ph)
+    lastPH := ph
+if not na(pl)
+    lastPL := pl
+var int   swpLoBar = -99999
+var float swpLoLvl = na
+var int   swpHiBar = -99999
+var float swpHiLvl = na
+if not na(lastPL) and low < lastPL
+    swpLoBar := bar_index
+    swpLoLvl := lastPL
+if not na(lastPH) and high > lastPH
+    swpHiBar := bar_index
+    swpHiLvl := lastPH
+swpUp = not na(swpLoLvl) and (bar_index - swpLoBar) <= lookK and close > swpLoLvl and close[1] <= swpLoLvl
+swpDn = not na(swpHiLvl) and (bar_index - swpHiBar) <= lookK and close < swpHiLvl and close[1] >= swpHiLvl
+
+xUpF = ta.crossover(close, eF)
+xDnF = ta.crossunder(close, eF)
+pulUp = eF > eS and xUpF
+pulDn = eF < eS and xDnF
+
+xUpV  = ta.crossover(close, vw)
+xDnV  = ta.crossunder(close, vw)
+bsAbv = ta.barssince(close > vw)
+bsBlw = ta.barssince(close < vw)
+vwUp  = xUpV and nz(bsAbv[1], 999) >= vwapM
+vwDn  = xDnV and nz(bsBlw[1], 999) >= vwapM
+
+fire = trigDir == 1 ? (brkUp or swpUp or pulUp or vwUp) : (brkDn or swpDn or pulDn or vwDn)
+
+SL  = 3
+TOT = 24
+var float[] OFF = array.from(0.0, 0.25, 0.5, 0.75)
+if barstate.isfirst
+    array.set(OFF, 0, o0)
+    array.set(OFF, 1, o1)
+    array.set(OFF, 2, o2)
+    array.set(OFF, 3, o3)
+
+var int[]   st   = array.new_int(TOT, 0)
+var float[] lpx  = array.new_float(TOT, na)
+var float[] ent  = array.new_float(TOT, na)
+var float[] dst  = array.new_float(TOT, na)
+var int[]   wt   = array.new_int(TOT, 0)
+var int[]   bIn  = array.new_int(TOT, 0)
+var int[]   cnt  = array.new_int(8, 0)
+var int[]   wns  = array.new_int(8, 0)
+var float[] sumR = array.new_float(8, 0.0)
+var int[]   plc  = array.new_int(8, 0)
+var int[]   fil  = array.new_int(8, 0)
+var int  skipped = 0
+
+fadeLong = trigDir == -1
+
+// ---- 1. resolve trades that were already active before this bar
+for i = 0 to TOT - 1
+    if array.get(st, i) == 2
+        dirIdx = i < 12 ? 0 : 1
+        acc    = dirIdx * 4 + int(math.floor((i % 12) / SL))
+        isLong = dirIdx == 0 ? fadeLong : not fadeLong
+        e = array.get(ent, i)
+        d = array.get(dst, i)
+        sp = isLong ? e - d : e + d
+        tp = isLong ? e + tgtR * d : e - tgtR * d
+        b  = array.get(bIn, i) + 1
+        array.set(bIn, i, b)
+        float r = na
+        if isLong
+            if low <= sp
+                r := -1.0
+            else if high >= tp
+                r := tgtR
+        else
+            if high >= sp
+                r := -1.0
+            else if low <= tp
+                r := tgtR
+        if na(r) and b >= maxBars
+            r := isLong ? (close - e) / d : (e - close) / d
+        if not na(r)
+            array.set(st, i, 0)
+            array.set(cnt,  acc, array.get(cnt, acc) + 1)
+            array.set(sumR, acc, array.get(sumR, acc) + r)
+            if r > 0
+                array.set(wns, acc, array.get(wns, acc) + 1)
+
+// ---- 2. fill or expire resting limits (a fill does NOT resolve this bar)
+for i = 0 to TOT - 1
+    if array.get(st, i) == 1
+        dirIdx = i < 12 ? 0 : 1
+        acc    = dirIdx * 4 + int(math.floor((i % 12) / SL))
+        isLong = dirIdx == 0 ? fadeLong : not fadeLong
+        lp = array.get(lpx, i)
+        hit = isLong ? low <= lp : high >= lp
+        if hit
+            array.set(st, i, 2)
+            array.set(ent, i, lp)
+            array.set(bIn, i, 0)
+            array.set(fil, acc, array.get(fil, acc) + 1)
+        else
+            w = array.get(wt, i) + 1
+            array.set(wt, i, w)
+            if w >= limBars
+                array.set(st, i, 0)
+
+// ---- 3. place new limits
+d0 = stopA * atr
+if fire and d0 > 0 and not na(atr)
+    bool room = true
+    for c = 0 to 7
+        bool fr = false
+        for s = 0 to SL - 1
+            base = (c < 4 ? 0 : 12) + (c % 4) * SL
+            if array.get(st, base + s) == 0
+                fr := true
+        if not fr
+            room := false
+    if not room
+        skipped := skipped + 1
+    else
+        for c = 0 to 7
+            dirIdx = c < 4 ? 0 : 1
+            oi     = c % 4
+            isLong = dirIdx == 0 ? fadeLong : not fadeLong
+            off    = array.get(OFF, oi) * atr
+            lp     = isLong ? close - off : close + off
+            bool placed = false
+            for s = 0 to SL - 1
+                idx = (dirIdx == 0 ? 0 : 12) + oi * SL + s
+                if not placed and array.get(st, idx) == 0
+                    placed := true
+                    array.set(st,  idx, 1)
+                    array.set(lpx, idx, lp)
+                    array.set(dst, idx, d0)
+                    array.set(wt,  idx, 0)
+                    array.set(plc, c, array.get(plc, c) + 1)
+
+var table tb = table.new(position.top_right, 8, 6, border_width=1)
+if barstate.islast
+    table.cell(tb, 0, 0, trigDir == 1 ? "LIMIT fade Ltrig" : "LIMIT fade Strig", text_color=color.white, bgcolor=color.navy, text_size=size.tiny)
+    table.cell(tb, 1, 0, "placed", text_color=color.white, bgcolor=color.navy, text_size=size.tiny)
+    table.cell(tb, 2, 0, "fill%",  text_color=color.white, bgcolor=color.navy, text_size=size.tiny)
+    table.cell(tb, 3, 0, "n",      text_color=color.white, bgcolor=color.navy, text_size=size.tiny)
+    table.cell(tb, 4, 0, "win%",   text_color=color.white, bgcolor=color.navy, text_size=size.tiny)
+    table.cell(tb, 5, 0, "R_fade", text_color=color.white, bgcolor=color.navy, text_size=size.tiny)
+    table.cell(tb, 6, 0, "R_foll", text_color=color.white, bgcolor=color.navy, text_size=size.tiny)
+    table.cell(tb, 7, 0, "R/trig", text_color=color.white, bgcolor=color.navy, text_size=size.tiny)
+    for o = 0 to 3
+        pf = array.get(plc, o)
+        ff = array.get(fil, o)
+        nf = array.get(cnt, o)
+        nl = array.get(cnt, o + 4)
+        rf = nf > 0 ? array.get(sumR, o) / nf : na
+        rl = nl > 0 ? array.get(sumR, o + 4) / nl : na
+        wf = nf > 0 ? 100.0 * array.get(wns, o) / nf : na
+        fr = pf > 0 ? 100.0 * ff / pf : na
+        pt = pf > 0 ? array.get(sumR, o) / pf : na
+        table.cell(tb, 0, o + 1, str.tostring(array.get(OFF, o), "#.##") + "xATR", text_size=size.tiny)
+        table.cell(tb, 1, o + 1, str.tostring(pf), text_size=size.tiny)
+        table.cell(tb, 2, o + 1, str.tostring(fr, "#.#"), text_size=size.tiny)
+        table.cell(tb, 3, o + 1, str.tostring(nf), text_size=size.tiny)
+        table.cell(tb, 4, o + 1, str.tostring(wf, "#.#"), text_size=size.tiny)
+        table.cell(tb, 5, o + 1, str.tostring(rf, "#.####"), text_size=size.tiny, bgcolor=na(rf) ? color.gray : rf > 0 ? color.new(color.green, 70) : color.new(color.red, 70))
+        table.cell(tb, 6, o + 1, str.tostring(rl, "#.####"), text_size=size.tiny)
+        table.cell(tb, 7, o + 1, str.tostring(pt, "#.####"), text_size=size.tiny)
+    table.cell(tb, 0, 5, "skip=" + str.tostring(skipped), text_size=size.tiny)
+    table.cell(tb, 1, 5, "bars=" + str.tostring(bar_index), text_size=size.tiny)

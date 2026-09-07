@@ -1,0 +1,259 @@
+//@version=6
+// =====================================================================
+// V18 -- synthesis rig: entry and stop as INDEPENDENT switches
+//
+// Built to test the one combination never tried: V16's strong entry
+// (Donchian breakout, PF 2.10 out of sample) on V17's tight structural stop.
+//
+// RESULT: the combination is structurally impossible. With a $12 stop cap it
+// takes ZERO trades -- all 223 in-session breakout signals are rejected as
+// "stop too wide". Lifting the cap to measure shows why: the mean structural
+// stop for a breakout entry is $33, against $6.95 for a sweep reclaim.
+//
+// That is geometry, not tuning. A breakout enters AT an extreme, so the
+// structure that invalidates it is the base of the move, far behind. A sweep
+// reclaim enters NEXT TO the extreme that invalidates it. Tight invalidation
+// and breakout entry are mutually exclusive. At $33 stops the 15m breakout
+// edge is negative anyway (PF 0.831).
+//
+// With entryMode 1 / stopMode 1 this reproduces V17 bit for bit, which is the
+// control that makes the above conclusion trustworthy.
+//
+// entryMode 1 sweep reclaim   2 donchian breakout   3 either
+// stopMode  1 structural   2 ATR
+// =====================================================================
+strategy("V18 SYNTH", overlay=true,
+     initial_capital=50000, currency=currency.USD,
+     default_qty_type=strategy.fixed, default_qty_value=1,
+     pyramiding=1,
+     commission_type=strategy.commission.cash_per_contract, commission_value=1.24,
+     slippage=2,
+     margin_long=5, margin_short=5,
+     max_labels_count=500)
+
+sideIn     = input.int(3,   "side 1both 2long 3short", minval=1, maxval=3, group="Setup")
+entryMode  = input.int(1,   "entry 1sweep 2donch 3either", minval=1, maxval=3, group="Setup")
+stopMode   = input.int(1,   "stop 1structural 2atr", minval=1, maxval=2, group="Setup")
+pivL       = input.int(5,   "pivot left",  group="Setup")
+pivR       = input.int(3,   "pivot right", group="Setup")
+reclaimBar = input.int(6,   "max bars sweep -> reclaim", group="Setup")
+donchLen   = input.int(20,  "donchian length", group="Setup")
+baseLen    = input.int(10,  "structural stop lookback (donch entries)", group="Setup")
+
+maxStopUSD = input.float(12.0, "MAX stop distance ($)", group="Stop")
+minStopUSD = input.float(2.0,  "min stop distance ($)", group="Stop")
+bufUSD     = input.float(1.0,  "buffer beyond structure ($)", group="Stop")
+stopATR    = input.float(1.5,  "ATR stop mult (stopMode 2)", group="Stop")
+
+tpR        = input.float(3.0,  "target (R); 0 = none", group="Exit")
+useTrail   = input.bool(false, "trail instead of fixed target", group="Exit")
+trailR     = input.float(1.0,  "trail offset (R)", group="Exit")
+flatEOD    = input.bool(true,  "flat at end of flat-window", group="Exit")
+
+sessStr    = input.session("1300-2100", "entry session (UTC)", group="Session")
+flatStr    = input.session("1300-1930", "must-be-flat-by window (UTC)", group="Session")
+
+riskUSD    = input.float(500,  "risk per trade ($)", group="Risk")
+maxCtr     = input.int(40,     "max contracts", group="Risk")
+dayStopR   = input.float(2.0,  "stop for the day after -R; 0 = off", group="Risk")
+
+startTime  = input.time(timestamp("2025-10-01 00:00 +0000"), "Start (UTC)", group="Window")
+endTime    = input.time(timestamp("2026-09-03 23:59 +0000"), "End (UTC)",   group="Window")
+doExport   = input.bool(false, "export trades as labels", group="Export")
+
+inWin  = time >= startTime and time <= endTime
+sessOn = not na(time(timeframe.period, sessStr, "UTC"))
+flatOn = not na(time(timeframe.period, flatStr, "UTC"))
+ptVal  = na(syminfo.pointvalue) or syminfo.pointvalue <= 0 ? 1.0 : syminfo.pointvalue
+atr    = ta.atr(14)
+
+ph = ta.pivothigh(high, pivL, pivR)
+pl = ta.pivotlow(low,  pivL, pivR)
+
+var float swLo = na
+var float swHi = na
+var bool  sweptLo = false
+var bool  sweptHi = false
+var float sweepLoPx = na
+var float sweepHiPx = na
+var int   sweepLoBar = 0
+var int   sweepHiBar = 0
+
+if not na(pl)
+    swLo      := pl
+    sweptLo   := false
+    sweepLoPx := na
+if not na(ph)
+    swHi      := ph
+    sweptHi   := false
+    sweepHiPx := na
+
+if not na(swLo) and low < swLo
+    sweptLo    := true
+    sweepLoPx  := na(sweepLoPx) ? low : math.min(sweepLoPx, low)
+    sweepLoBar := bar_index
+if not na(swHi) and high > swHi
+    sweptHi    := true
+    sweepHiPx  := na(sweepHiPx) ? high : math.max(sweepHiPx, high)
+    sweepHiBar := bar_index
+
+sweepL = sweptLo and not na(swLo) and close > swLo and (bar_index - sweepLoBar) <= reclaimBar
+sweepS = sweptHi and not na(swHi) and close < swHi and (bar_index - sweepHiBar) <= reclaimBar
+
+dcHi   = ta.highest(high, donchLen)[1]
+dcLo   = ta.lowest(low,  donchLen)[1]
+donchL = ta.crossover(close, dcHi)
+donchS = ta.crossunder(close, dcLo)
+
+baseLo = ta.lowest(low,  baseLen)
+baseHi = ta.highest(high, baseLen)
+
+stopSweepL = sweepLoPx - bufUSD
+stopSweepS = sweepHiPx + bufUSD
+stopDonchL = baseLo - bufUSD
+stopDonchS = baseHi + bufUSD
+
+rawL = (entryMode == 1 and sweepL) or (entryMode == 2 and donchL) or (entryMode == 3 and (sweepL or donchL))
+rawS = (entryMode == 1 and sweepS) or (entryMode == 2 and donchS) or (entryMode == 3 and (sweepS or donchS))
+
+structL = entryMode == 2 ? stopDonchL : sweepL ? stopSweepL : stopDonchL
+structS = entryMode == 2 ? stopDonchS : sweepS ? stopSweepS : stopDonchS
+
+stpL = stopMode == 1 ? structL : close - stopATR * atr
+stpS = stopMode == 1 ? structS : close + stopATR * atr
+dL   = close - stpL
+dS   = stpS  - close
+
+var int   taken   = 0
+var int   rejWide = 0
+var int   rejTight= 0
+var int   rejSess = 0
+var int   rejPos  = 0
+var int   rejDay  = 0
+var int   sigCnt  = 0
+var float sumStop = 0.0
+
+var float entryPx  = na
+var float entryStp = na
+var float entryR   = na
+
+var float dayPnL   = 0.0
+var float lastEq   = 0.0
+newDay = ta.change(time("D")) != 0
+if newDay
+    dayPnL := 0.0
+dayPnL += strategy.netprofit + strategy.openprofit - lastEq
+lastEq := strategy.netprofit + strategy.openprofit
+dayBlocked = dayStopR > 0 and dayPnL <= -dayStopR * riskUSD
+
+sizeFor(d) =>
+    rpc = d * ptVal
+    rpc > 0 ? math.min(math.floor(riskUSD / rpc), maxCtr) : 0
+
+armL(px, stp, r) =>
+    if useTrail
+        strategy.exit("xL", "L", stop=stp, trail_points=r/syminfo.mintick, trail_offset=trailR*r/syminfo.mintick)
+    else if tpR > 0
+        strategy.exit("xL", "L", stop=stp, limit=px + tpR * r)
+    else
+        strategy.exit("xL", "L", stop=stp)
+
+armS(px, stp, r) =>
+    if useTrail
+        strategy.exit("xS", "S", stop=stp, trail_points=r/syminfo.mintick, trail_offset=trailR*r/syminfo.mintick)
+    else if tpR > 0
+        strategy.exit("xS", "S", stop=stp, limit=px - tpR * r)
+    else
+        strategy.exit("xS", "S", stop=stp)
+
+canEnter = inWin and sessOn and (not flatEOD or flatOn)
+
+if inWin
+    okL = sideIn == 1 or sideIn == 2
+    okS = sideIn == 1 or sideIn == 3
+
+    if rawL and okL
+        sigCnt += 1
+        if not canEnter
+            rejSess += 1
+        else if dayBlocked
+            rejDay += 1
+        else if strategy.position_size != 0
+            rejPos += 1
+        else if na(dL) or dL > maxStopUSD
+            rejWide += 1
+        else if dL < minStopUSD
+            rejTight += 1
+        else
+            n = sizeFor(dL)
+            if n < 1
+                rejWide += 1
+            else
+                strategy.entry("L", strategy.long, qty=n)
+                entryPx  := close
+                entryStp := stpL
+                entryR   := dL
+                sweptLo  := false
+                taken    += 1
+                sumStop  += dL
+                armL(close, stpL, dL)
+
+    if rawS and okS
+        sigCnt += 1
+        if not canEnter
+            rejSess += 1
+        else if dayBlocked
+            rejDay += 1
+        else if strategy.position_size != 0
+            rejPos += 1
+        else if na(dS) or dS > maxStopUSD
+            rejWide += 1
+        else if dS < minStopUSD
+            rejTight += 1
+        else
+            n2 = sizeFor(dS)
+            if n2 < 1
+                rejWide += 1
+            else
+                strategy.entry("S", strategy.short, qty=n2)
+                entryPx  := close
+                entryStp := stpS
+                entryR   := dS
+                sweptHi  := false
+                taken    += 1
+                sumStop  += dS
+                armS(close, stpS, dS)
+
+if strategy.position_size > 0 and not na(entryStp)
+    armL(entryPx, entryStp, entryR)
+if strategy.position_size < 0 and not na(entryStp)
+    armS(entryPx, entryStp, entryR)
+
+if strategy.position_size != 0 and ((flatEOD and not flatOn) or time > endTime)
+    strategy.close_all(comment="flat")
+
+var int lastN = 0
+if doExport and strategy.closedtrades > lastN
+    for i = lastN to strategy.closedtrades - 1
+        txt = "T|" + str.tostring(i) + "|" + str.tostring(strategy.closedtrades.entry_time(i)) + "|" + str.tostring(strategy.closedtrades.exit_time(i)) + "|" + str.tostring(strategy.closedtrades.profit(i), "#.##") + "|" + str.tostring(strategy.closedtrades.size(i), "#.##") + "|" + str.tostring(strategy.closedtrades.max_runup(i), "#.##") + "|" + str.tostring(strategy.closedtrades.max_drawdown(i), "#.##")
+        label.new(bar_index, high, txt, style=label.style_none, textcolor=color.new(color.white, 100), size=size.tiny)
+    lastN := strategy.closedtrades
+
+if barstate.islastconfirmedhistory or barstate.islast
+    t = table.new(position.top_right, 2, 8, border_width=1)
+    table.cell(t, 0, 0, "signals", bgcolor=color.gray, text_color=color.white)
+    table.cell(t, 1, 0, str.tostring(sigCnt), bgcolor=color.gray, text_color=color.white)
+    table.cell(t, 0, 1, "taken")
+    table.cell(t, 1, 1, str.tostring(taken))
+    table.cell(t, 0, 2, "mean stop USD")
+    table.cell(t, 1, 2, str.tostring(taken > 0 ? sumStop / taken : 0, "#.##"))
+    table.cell(t, 0, 3, "rej session")
+    table.cell(t, 1, 3, str.tostring(rejSess))
+    table.cell(t, 0, 4, "rej day guard")
+    table.cell(t, 1, 4, str.tostring(rejDay))
+    table.cell(t, 0, 5, "rej in position")
+    table.cell(t, 1, 5, str.tostring(rejPos))
+    table.cell(t, 0, 6, "rej stop wide")
+    table.cell(t, 1, 6, str.tostring(rejWide))
+    table.cell(t, 0, 7, "rej stop tight")
+    table.cell(t, 1, 7, str.tostring(rejTight))

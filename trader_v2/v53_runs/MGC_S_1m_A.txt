@@ -1,0 +1,7 @@
+FUNNEL S A 1m: foldbars 10386 | w/LTF 9813 | sweeps 432 | CHOCH 385 | retests 352 | BOS+disp 6 | FVG 6 | fills 2
+ break-no-disp 2348 | noFVG 0 | Rband 2 | FVGexpiry 2 | expire 47/33/346 | dropped 0 | ASSERTS all 0
+PERF MGC1! S 1m A: cov 2026-05-27 02:15 -> 2026-07-15 23:55 | fills 2 | W1 Lstop1 TO0 | wr 50% | Rpre 4 | Rpost 3.879 | avg 1.9395 | med 1.9395 | exp 1.9395R | maxConsecL 1 | DD_R 1.054 | DD_$ 59.06 | tot$ 160.26
+LEDGER:
+MGC1!|S|1m|A|sw 2026-06-02 22:10|SW|swX 4521.6|ch 2026-06-02 22:25|chL 4517.4|rt 2026-06-02 22:26|bos 2026-06-02 22:45|bosL 4516.8|fvg 4516-4517.7|en 2026-06-02 22:50|enPx 4517.7|stop 4522.1464|WIN|4.933R|$219.32|target|6bars
+MGC1!|S|1m|A|sw 2026-06-02 22:00|SW|swX 4522.8|ch 2026-06-02 22:25|chL 4517.4|rt 2026-06-02 22:26|bos 2026-06-02 22:45|bosL 4516.8|fvg 4516-4517.7|en 2026-06-02 22:50|enPx 4517.7|stop 4523.3057|LOSS|-1.054R|$-59.06|stop|22bars
+NOTE: identical entry 4517.7, different sweep extreme -> different stop -> opposite outcome. The stop decided it, not the entry.
