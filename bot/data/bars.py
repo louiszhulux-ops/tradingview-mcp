@@ -35,7 +35,7 @@ from decimal import Decimal, InvalidOperation
 from typing import Any, Iterable, Sequence
 
 from bot.contracts.enums import LTF_CHOICES, Timeframe
-from bot.guards import assert_pre_fe
+from bot.guards import FE_MS, HeldOutDataError, assert_pre_fe
 
 
 class BarContractError(ValueError):
@@ -104,10 +104,26 @@ class Bar:
         if not isinstance(self.timeframe, Timeframe):
             raise BarContractError(f"timeframe must be a Timeframe, got {self.timeframe!r}")
 
-        # Fail closed on timestamps: the guard rejects missing, malformed and
-        # held-out values alike.
+        # Fail closed on the open instant: the guard rejects missing, malformed
+        # and held-out values alike.
         assert_pre_fe(self.open_ts_ms, context=f"{self.instrument} {self.timeframe.value} open_ts_ms")
-        assert_pre_fe(self.close_ts_ms, context=f"{self.instrument} {self.timeframe.value} close_ts_ms")
+        # `close_ts_ms` is the bar's EXCLUSIVE end. A bar that opens before FE
+        # and ends exactly at FE holds only pre-FE data: FE is an exclusive
+        # boundary (`time < FE`) and the span [open, close) lies wholly before
+        # it. The final bar of every Phase C series is precisely this bar —
+        # 5m opening 23:55 and 1m opening 23:59 on 2026-08-30 — so guarding the
+        # close with `< FE` would discard real in-window data, while `> FE`
+        # still admits nothing from the held-out window.
+        if not isinstance(self.close_ts_ms, int) or isinstance(self.close_ts_ms, bool):
+            raise BarContractError(
+                f"close_ts_ms must be an int, got "
+                f"{type(self.close_ts_ms).__name__} {self.close_ts_ms!r}")
+        if self.close_ts_ms > FE_MS:
+            raise HeldOutDataError(
+                f"forward-held-out data refused [{self.instrument} "
+                f"{self.timeframe.value} close_ts_ms]: {self.close_ts_ms} ends after "
+                f"the Phase 16 boundary FE = {FE_MS}; a bar may close exactly at FE "
+                f"but never beyond it")
 
         expected = self.timeframe.minutes * 60_000
         if self.close_ts_ms - self.open_ts_ms != expected:
@@ -206,7 +222,10 @@ class ParentBar:
     A short or empty `ltf_bars` is **represented, not repaired**. V53 silently
     receives a shorter array and counts `fold bars w/ LTF` against `fold bars`;
     the contract exposes the same fact through :attr:`ltf_complete` so a bot can
-    act on it instead of never seeing it.
+    act on it instead of never seeing it. The same applies to an *interior* gap:
+    a minute in which nothing traded is absent from the LTF array, and the
+    sub-bars are required to be ordered and non-overlapping rather than
+    contiguous.
     """
 
     bar: Bar
@@ -241,8 +260,16 @@ class ParentBar:
                 raise BarContractError(f"{where} starts outside its parent 5m bar")
             if sub.close_ts_ms > self.bar.close_ts_ms:
                 raise BarContractError(f"{where} ends after its parent 5m bar")
-            if previous_close is not None and sub.open_ts_ms != previous_close:
-                raise BarContractError(f"{where} is out of order or leaves a gap")
+            # Strictly increasing and non-overlapping — deliberately NOT a
+            # contiguous grid. A tradeless minute is simply absent from what
+            # `request.security_lower_tf` returns, so an interior gap is a real
+            # recorded market condition (three MGC parents in the Phase C data
+            # have one), and V53 consumes the short array without noticing.
+            # This matches `validate_series`, which rejects disorder, duplicates
+            # and overlap while allowing genuine session gaps. Asserting
+            # contiguity here would reject real data and repair nothing.
+            if previous_close is not None and sub.open_ts_ms < previous_close:
+                raise BarContractError(f"{where} is out of order or overlaps its predecessor")
             previous_close = sub.close_ts_ms
 
     @property

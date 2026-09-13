@@ -79,6 +79,38 @@ State this plainly wherever the word is used:
 > **No future rerun may manufacture that missing ground truth.** A rerun today
 > produces today's values; calling them history would be fabrication.
 
+### 1.1a Gap G1 — combining per-dataset statuses — **RATIFIED 2026-09-13**
+
+§1 requires each cell to declare one status and requires an unrecognised status
+to be refused, but every Gate 1 cell has **two** datasets — a 5m parent and an
+LTF series — and the model did not say how they combine. Ratified rule:
+
+> A cell is `AUTHORITATIVE` **if and only if** every required dataset is
+> explicitly and unqualifiedly `AUTHORITATIVE`. Otherwise the cell is
+> `CANDIDATE`.
+
+Consequences, all of them intended:
+
+* `PARTIAL` **does not confer authority** — which is what refusing it means
+  operationally.
+* `PARTIAL` is **not** silently converted to `NO-DATA`. Converting it would
+  collapse all 24 cells into one bucket and destroy the distinction between
+  "no 3m file exists", "fold A coverage is short" and "the data is merely
+  unfrozen" — the distinction the repaired vocabulary exists to draw.
+* A cell carrying `PARTIAL` + `CANDIDATE` remains evaluable, at candidate
+  weight only.
+* Candidate data can never produce `PASS` or `SOURCE-TRUNCATED`. Enforced twice:
+  in `decide_cell_verdict`, and again in `CellResult.__post_init__`.
+* Every unresolved status is recorded by file and printed in the report, so the
+  reason is never hidden.
+
+**Compatibility.** No frozen artifact constrains this. The eight frozen
+artifacts contain no mention of `AUTHORITATIVE`, `PARTIAL`, or Gate 1;
+`PHASE16_PROTOCOL.md` governs the Phase 16 held-out window and says nothing
+about dataset status. The Gate 1 acceptance model lives in this file and in
+`BOT_IMPLEMENTATION_ROADMAP.md`, neither of which is frozen. The rule is also
+strictly conservative: it can only ever *withhold* authority, never grant it.
+
 ### 1.2 The P-9 candidate stays `CANDIDATE`
 
 `data/phase_c_ltf/*.csv` reproduce the fixture coverage counters exactly for
@@ -259,6 +291,27 @@ on it.
 
 Exit price for timeout exits is likewise never compared: the source recorded
 none (five such rows across the 58).
+
+---
+
+## 4.7 The replay horizon — a boundary effect, not a tolerance
+
+V53 gates only **arming** on `inFold` (`V53_ltf_sequence.pine:506`). Sections
+1-4 — outcomes, fills, the deadline and the entire LTF loop — run ungated on
+every bar, so a sequence armed inside a fold keeps producing counted events on
+bars *after* that fold ends.
+
+The Phase 14 fold-C runs were executed on a chart that continued past `FE`;
+`ltf_bars` = 100,000 proves it arithmetically, since a 1m stream cannot deliver
+more than five elements per 5m parent and the whole pre-`FE` series holds fewer
+than 20,000 parents. A replay that stops at `FE` — as ours must, permanently —
+therefore loses whatever events a still-live sequence would have produced on
+bars beyond it.
+
+**This is recorded, never compensated for.** No verdict is adjusted, no counter
+is excused, and no horizon tolerance exists or may be added. A cell affected by
+it diverges, and the report says why. The finding is pinned by
+`bot/tests/test_gate1_foldc_horizon.py`.
 
 ---
 
