@@ -171,7 +171,21 @@ G. HYGIENE / FUTURE ────────────────────
   consumed, so the strategy adapter can be driven without TradingView.
 - **Affects.** new `bot/data/bar.py`, `bot/data/offline_loader.py`, `bot/fixtures/bars/`.
 - **Depends on.** A1, A2.
-- **Acceptance.**
+> **AMENDMENT 2026-09-13 — B1 acceptance criteria 1 and 5 amended. Criteria 2, 3
+> and 4 unchanged.** Criterion 1 required `volume` and a mandatory `open`, and the
+> surviving frozen datasets carry neither: `data/phase_c/*.csv` holds
+> `timestamp,high,low,close` only. V53 consumes neither field — `open` appears
+> exactly once in `trader_v2/V53_ltf_sequence.pine`, at line 99's
+> `request.security_lower_tf` call, and is never referenced again; `volume`
+> appears zero times — so the requirement blocked the harness without protecting
+> anything. Criterion 5 asked the loader to "reproduce" the LTF coverage counters,
+> which for 1m fold A is permanently impossible (D4): the `security_lower_tf`
+> 100,000-value window is trailing and has slid past those 136 MGC / 137 MNQ
+> parents. Reproduction is therefore restated as a **precondition that halts the
+> cell**, so a hole in the data is never reported as strategy divergence. The
+> original wording is retained below and superseded by the amended text.
+
+- **Acceptance (1 and 5 SUPERSEDED 2026-09-13; ORIGINAL retained).**
   1. `Bar` carries `ts_open_ms`, `ts_close_ms`, OHLC as `Decimal`, volume, `tf`, `instrument`, and
      a `complete` flag. Incomplete bars are never handed to the strategy.
   2. The loader emits 5m bars each carrying the ordered list of contained LTF sub-bars — the exact
@@ -182,6 +196,24 @@ G. HYGIENE / FUTURE ────────────────────
      **rejected**, not repaired.
   5. Cells whose LTF coverage is short reproduce V53's `fold bars w/ LTF` vs `fold bars` counters
      within the loader itself.
+
+- **Acceptance 1 and 5 (AMENDED 2026-09-13 — authoritative).**
+  1. `Bar` carries `ts_open_ms`, `ts_close_ms`, `high`, `low` and `close` as `Decimal`, `tf`,
+     `instrument`, and a `complete` flag. **`open` and `volume` are optional**, because V53
+     consumes neither and the surviving datasets do not carry them. When present they are
+     validated exactly as before; when absent they are `None`. **An absent field is never
+     defaulted, zero-filled, back-filled, interpolated or synthesised, and `None` does not mean
+     zero** — it means the source never recorded the value. Any component that needs the value
+     must obtain it through `Bar.require()`, which raises `AbsentFieldError`; reading the attribute
+     directly is for serialisation and presence checks only. Incomplete bars are never handed to
+     the strategy, and `V53Engine.on_bar` rejects an incomplete parent bar or LTF sub-bar outright.
+  5. The loader computes `fold_bars` and `fold_bars_with_ltf` from the series it is given and
+     compares them to the cell's golden fixture **before the engine runs**. A mismatch halts that
+     cell as `PRECONDITION-FAIL`, naming instrument, fold, timeframe, expected and actual values
+     for both counters, and the first differing parent timestamp where determinable. The loader
+     never reconstructs a lower timeframe from a higher one, never interpolates a missing sub-bar,
+     and never substitutes an external source unless a written authorisation for that specific
+     source is recorded in the run manifest.
 - **Tests.** `test_bar_model.py`, `test_offline_loader.py` — gap/duplicate/out-of-order rejection,
   LTF nesting, pre-`FE` guard, counter reproduction.
 - **Phase-16-safe.** YES. **Touches frozen V53.** NO.
@@ -227,7 +259,21 @@ G. HYGIENE / FUTURE ────────────────────
 - **Affects.** new `bot/replay/harness.py`, `bot/replay/compare.py`, `bot/reports/gate1.md`
   (generated), CI job `gate1`.
 - **Depends on.** A2, B1, B2.
-- **Acceptance.**
+> **AMENDMENT 2026-09-13 — B3 acceptance criteria 1, 2, 3 amended; 0, 2b and 7
+> added. Criteria 4, 5 and 6 unchanged.** The B3 Feasibility Audit found this
+> gate could not be adjudicated: it demanded parity on values V53 never emitted
+> (D1), its only downgrade clause was inert (D2), it had no state for a cell
+> whose input dataset does not exist (D3), it assumed a series that is
+> permanently unrecoverable for 1m fold A (D4), and it required two assertion
+> counters that have no Python analogue to "read 0" (D5). The original wording
+> below is **retained as the historical record and is superseded** by the
+> amended criteria that follow it. The executable definition lives in
+> `bot/replay/verdicts.py`; the full model is `bot/GATE1_ACCEPTANCE.md`.
+> Nothing here weakens the gate: zero tolerance, `Decimal` price equality,
+> first-divergent-bar/slot diagnostics and the no-"close enough" rule all stand,
+> and the pass threshold is unchanged at all 24 cells.
+
+- **Acceptance (ORIGINAL — HISTORICAL, SUPERSEDED 2026-09-13).**
   1. For all 8 cells × folds A, B, C: **zero** mismatches in funnel counters
      (sweeps, CHOCH, retests, BOS, FVG, fills, R-band rejects, expiries, `dropped (no slot)`).
   2. For every non-truncated cell: the trade ledger matches row-for-row — entry ts, entry price,
@@ -239,6 +285,75 @@ G. HYGIENE / FUTURE ────────────────────
      job fails. There is no tolerance parameter and no "close enough" mode.
   6. Truncated cells (A2 §5) are compared on counters only, and the report states which cells were
      downgraded and why.
+
+- **Acceptance (AMENDED 2026-09-13 — authoritative).**
+  0. **Dataset provenance.** Every cell declares its dataset file paths, their `sha256`, the
+     manifest `status` (`AUTHORITATIVE` or `CANDIDATE`), instrument, fold, LTF timeframe and the
+     capture that produced them. The harness **reads** status and never manufactures or upgrades
+     one. A dataset is `AUTHORITATIVE` only when it reproduces that cell's fixture coverage
+     counters exactly, **and** is frozen with a recorded hash and manifest entry, **and** was
+     captured in a single non-paginated pass through the mechanism V53 consumed.
+     **This is an evidentiary standard, not proof of byte-identity with the historical
+     TradingView LTF values.** Exact coverage reproduction is necessary but not sufficient; no
+     historical LTF value artifact exists, so absolute historical value identity cannot be proven,
+     and no future rerun may manufacture that missing ground truth. No cell runs without a
+     declared status.
+  1. **Behaviour counters — zero mismatches, no tolerance.** For every cell reaching comparison,
+     all fourteen must match exactly: `sweeps`, `choch`, `retests`, `bos_displacement`,
+     `break_no_displacement`, `fvg`, `no_fvg`, `fills`, `r_band_rejects`, `fvg_retest_expiry`,
+     `expire_pre_choch`, `expire_post_choch`, `expire_post_retest`, `dropped_no_slot`.
+     **Coverage counters are a precondition, not parity.** `fold_bars` and `fold_bars_with_ltf`
+     measure the input series, not the strategy. The loader computes them **before the engine
+     runs**; a mismatch halts the cell as `PRECONDITION-FAIL`, naming instrument, fold, timeframe,
+     expected and actual values for both counters, and the first differing parent timestamp where
+     determinable. The engine is not run and no parity verdict is recorded — a data deficiency is
+     never reported as strategy divergence. No reconstruction from a higher timeframe, no
+     interpolation, no synthetic bars, no external substitution.
+     **Excluded:** `ltf_bars` (K31) is counted chart-wide rather than in-fold and is null in most
+     fixtures; it is reported for information with its reason, never compared.
+  2. For every cell reaching comparison and not `SOURCE-TRUNCATED`, the trade ledger matches
+     **row-for-row and in order** on exactly the eighteen fields V53 emitted: `sweep_ts`,
+     `sweep_kind`, `sweep_extreme`, `choch_ts`, `choch_level`, `retest_ts`, `bos_ts`, `bos_level`,
+     `fvg_low`, `fvg_high`, `entry_ts`, `entry_price`, `stop_price`, `outcome`, `r_multiple`,
+     `pnl_usd`, `exit_reason`, `bars_in_trade`. Row count exact; row order exact; exact `Decimal`
+     equality on every price, with a float on either side refused rather than compared. A missing
+     row and an extra row are each a failure, and the first divergent row and field are named.
+     `target_price`, `MFE` and `MAE` are **excluded from parity and may never be added to it** —
+     V53 computes MFE/MAE internally (`V53_ltf_sequence.pine:140-141, 199-208`) and emits none of
+     the three, so no historical comparand exists and none may be manufactured by recomputation or
+     by a new run. Exit price for timeout exits is never compared; the source recorded none.
+  2b. **Derived diagnostics.** The engine computes `target_price`, `MFE` and `MAE` and serialises
+     them into the Gate 1 report labelled `DERIVED — NO GOLDEN COMPARAND`. They never affect a
+     Gate 1 verdict. A determinism baseline over them is an implementation regression guard on our
+     own code, explicitly **not** historical TradingView parity, and may never be cited as such.
+  3. `K21`, `K22`, `K23`, `K24`, `K25` and `K32` must read **0** in the Python engine, as in the
+     frozen runs; non-zero is a failure. `K26` and `K27` are reported **`NOT APPLICABLE`**, never
+     as a passing zero: V53 §6 exists solely to cross-check its hand-rolled pivot against Pine's
+     `ta.pivothigh`/`ta.pivotlow`, and Python has no built-in comparand
+     (`bot/B2_V53_IMPLEMENTATION_AUDIT.md:171-174`). A structurally absent check is not a passing
+     check, and K26/K27 contribute to no verdict in either direction.
+  4. *(unchanged)* The conservation identity `FVG = fills + R-band rejects + FVG retest expiry`
+     holds in the Python engine for every cell.
+  5. *(unchanged)* Any mismatch produces a **diff report naming the first divergent bar and slot**,
+     and the CI job fails. There is no tolerance parameter and no "close enough" mode.
+  6. *(unchanged)* Truncated cells (A2 §5) are compared on counters only, and the report states
+     which cells were downgraded and why. **Note:** all 24 fixtures record
+     `fills_truncated_at_source = false`, so this clause is currently inert. It is retained
+     correct and unused, and must never be stretched to cover a cell with no dataset — see
+     criterion 7.
+  7. **Cell verdicts and Gate 1 aggregation.** Each of the 24 cells receives exactly one verdict,
+     classified at the earliest applicable tier: `NO-DATA` → `PRECONDITION-FAIL` →
+     `SOURCE-TRUNCATED` → (`PROVISIONAL-PASS` | `PROVISIONAL-FAIL`) → (`PASS` | `FAIL`), with two
+     tightening refinements: a divergence outranks truncation, and `CANDIDATE` status outranks
+     truncation. `NO-DATA` is **not** a valid truncation downgrade.
+     **Gate 1 = PASS if and only if all 24 cells are `PASS` or `SOURCE-TRUNCATED`.** No other
+     combination passes, under any argument, in any report, and a short census cannot pass.
+     Otherwise the gate reports exactly one of `GATE 1: FAIL` (any cell `FAIL`),
+     `GATE 1: NOT ADJUDICABLE — DIVERGENCE ON CANDIDATE DATA` (any `PROVISIONAL-FAIL`), or
+     `GATE 1: NOT ADJUDICABLE — INSUFFICIENT EVIDENCE`, enumerating every blocked cell by name with
+     its reason and the exact data that would resolve it. Partial validation never unblocks a
+     downstream phase: `§4`'s rule that nothing in Phase C, D, E or F may consume strategy output
+     until B3 passes is unchanged, and "passes" means `GATE 1: PASS`.
 - **Tests.** the harness *is* the test; plus `test_compare.py` proving the comparator detects an
   injected one-tick price change, an injected extra ledger row, and a missing row.
 - **Phase-16-safe.** YES.

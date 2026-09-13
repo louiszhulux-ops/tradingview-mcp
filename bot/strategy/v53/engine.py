@@ -143,6 +143,22 @@ class V53Engine:
             raise ValueError(
                 f"LTF {parent.ltf_timeframe.value} != configured {self.config.ltf.value}"
             )
+        # B1 acceptance 1: incomplete bars are never handed to the strategy.
+        # V53 decides on the *closed* 5m bar; a forming bar's high, low and
+        # close are provisional, and absorbing one silently front-runs a
+        # decision the artifact never made.
+        if not parent.bar.complete:
+            raise ValueError(
+                f"bar {bar.open_ts_ms} is incomplete; V53 resolves on closed 5m "
+                f"bars only and the engine never absorbs a forming bar"
+            )
+        for index, sub in enumerate(parent.ltf_bars):
+            if not sub.complete:
+                raise ValueError(
+                    f"bar {bar.open_ts_ms} ltf[{index}] at {sub.open_ts_ms} is "
+                    f"incomplete; the LTF array is an intrabar reconstruction "
+                    f"taken at the parent close and contains only closed sub-bars"
+                )
         open_ts = bar.open_ts_ms
         if self._previous_bar_open_ts_ms is not None and open_ts <= self._previous_bar_open_ts_ms:
             raise ValueError(

@@ -15,6 +15,17 @@ the 5m stream**: the sweep engine, ATR, the fill test and both bar-count
 deadlines are defined on 5m bars, and no combination of 1m bars reproduces them.
 
 Every timestamp entering this module passes the A1 pre-FE guard.
+
+**Optional fields (B1 amendment 2026-09-13, roadmap A7/A9).** `open` and
+`volume` are optional, because the surviving frozen datasets do not carry them
+and V53 does not consume them: `open` appears exactly once in
+`trader_v2/V53_ltf_sequence.pine` — line 99, the `request.security_lower_tf`
+request — and is never referenced again; `volume` appears zero times. An absent
+field is represented as ``None`` and is **never** defaulted, zero-filled,
+back-filled, interpolated or synthesised. ``None`` does not mean zero; it means
+the source never recorded the value. Any component that needs the value must ask
+for it through :meth:`Bar.require`, which raises :class:`AbsentFieldError` —
+reading the attribute directly is for serialisation and presence checks only.
 """
 
 from __future__ import annotations
@@ -31,6 +42,19 @@ class BarContractError(ValueError):
     """A bar that cannot be trusted. Bars are rejected, never repaired."""
 
 
+class AbsentFieldError(BarContractError):
+    """A field the source never recorded was required by a caller.
+
+    Raised instead of returning a default. The surviving datasets carry no
+    `open` and no `volume`; a caller that needs either is asking for data that
+    does not exist, and the only honest answer is to fail loudly.
+    """
+
+
+#: Fields that may legitimately be absent from a source dataset.
+OPTIONAL_FIELDS: tuple[str, ...] = ("open", "volume")
+
+
 def _price(value: Any, name: str) -> Decimal:
     if isinstance(value, Decimal):
         return value
@@ -45,6 +69,16 @@ def _price(value: Any, name: str) -> Decimal:
     )
 
 
+def _optional_price(value: Any, name: str) -> Decimal | None:
+    """`None` passes through untouched. Everything else is validated exactly.
+
+    Absence is preserved, never converted into a number.
+    """
+    if value is None:
+        return None
+    return _price(value, name)
+
+
 @dataclass(frozen=True)
 class Bar:
     """One completed bar. Immutable, exact, and self-validating.
@@ -57,7 +91,7 @@ class Bar:
     timeframe: Timeframe
     open_ts_ms: int
     close_ts_ms: int
-    open: Decimal
+    open: Decimal | None
     high: Decimal
     low: Decimal
     close: Decimal
@@ -84,17 +118,25 @@ class Bar:
         if self.open_ts_ms % 60_000:
             raise BarContractError(f"open_ts_ms {self.open_ts_ms} is not on a minute boundary")
 
-        for name in ("open", "high", "low", "close"):
+        # high/low/close are always required: V53 consumes all three on both
+        # the parent and the LTF stream. `open` is optional — see the module
+        # docstring — and `None` is preserved rather than replaced.
+        for name in ("high", "low", "close"):
             object.__setattr__(self, name, _price(getattr(self, name), name))
-        if self.volume is not None:
-            object.__setattr__(self, "volume", _price(self.volume, "volume"))
-            if self.volume < 0:
-                raise BarContractError(f"negative volume {self.volume}")
+        object.__setattr__(self, "open", _optional_price(self.open, "open"))
+        object.__setattr__(self, "volume", _optional_price(self.volume, "volume"))
+        if self.volume is not None and self.volume < 0:
+            raise BarContractError(f"negative volume {self.volume}")
 
         if self.low > self.high:
             raise BarContractError(f"low {self.low} above high {self.high}")
+        # Bracket validation is unchanged for every field that is present. An
+        # absent field is not checked, because there is nothing to check — it is
+        # never treated as though it held some permissible value.
         for name in ("open", "close"):
             value = getattr(self, name)
+            if value is None:
+                continue
             if not (self.low <= value <= self.high):
                 raise BarContractError(f"{name} {value} outside [{self.low}, {self.high}]")
 
@@ -105,6 +147,38 @@ class Bar:
     def range(self) -> Decimal:
         """high − low. Arithmetic on recorded fields, not a strategy decision."""
         return self.high - self.low
+
+    @property
+    def has_open(self) -> bool:
+        """Whether the source recorded an opening price for this bar."""
+        return self.open is not None
+
+    @property
+    def has_volume(self) -> bool:
+        """Whether the source recorded a volume for this bar."""
+        return self.volume is not None
+
+    def require(self, name: str) -> Decimal:
+        """Return an optional field's value, or raise if the source lacks it.
+
+        This is the only sanctioned way for a component to *use* `open` or
+        `volume`. It exists so that a missing value surfaces as an explicit,
+        named failure at the point of use, rather than as a `None` that flows
+        onward and is silently coerced somewhere downstream.
+        """
+        if name not in OPTIONAL_FIELDS:
+            raise BarContractError(
+                f"require() covers the optional fields {OPTIONAL_FIELDS}, not {name!r}"
+            )
+        value = getattr(self, name)
+        if value is None:
+            raise AbsentFieldError(
+                f"{self.instrument} {self.timeframe.value} bar at "
+                f"{self.open_ts_ms}: {name} is absent from the source dataset. "
+                f"It was never recorded and must not be defaulted, back-filled "
+                f"or interpolated."
+            )
+        return value
 
     def to_dict(self) -> dict[str, Any]:
         return {
