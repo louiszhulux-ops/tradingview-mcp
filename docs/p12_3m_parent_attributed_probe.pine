@@ -1,0 +1,74 @@
+//@version=6
+// P-12 3m LTF PARENT-ATTRIBUTED EXTRACTION PROBE -- DATA EXTRACTION ONLY.
+//
+// Sibling of docs/p11_3m_extraction_probe.pine, which is NOT modified: that file
+// is the record of what P-11 ran. docs/p9_extraction_probe.pine likewise stays
+// byte-identical.
+//
+// WHY THIS EXISTS
+// P-11 persisted only the 3m bar timestamps, so the parent each bar was
+// attributed to was lost. The eligibility audit then showed that re-deriving it
+// as `timestamp - (timestamp % 300)` disagrees with TradingView on every
+// straddling bar -- 40% of the stream. Attribution must therefore be OBSERVED,
+// never reconstructed.
+//
+// HOW THE ATTRIBUTION IS OBSERVED
+// request.security_lower_tf() delivers, on each 5m chart bar, exactly the array
+// of lower-timeframe bars TradingView assigns to THAT parent. The parent is
+// therefore the bar the study is executing on, and its timestamp is plain
+// `time`. Publishing `time` as `pt` makes that relationship an explicit,
+// read-back output rather than an inference. It is also independently
+// recoverable as the study series' own bar time, so the two can be cross-checked
+// against each other on every row.
+//
+// Contains no strategy logic whatsoever: no ATR, pivots, swings, sweep, CHOCH,
+// BOS, displacement, FVG, entry, stop, target, risk, P&L, signals or
+// performance. It requests the lower-timeframe arrays and republishes them.
+indicator("P12 3M LTF PARENT-ATTRIBUTED", overlay=false)
+
+ltfStr = input.string("3", "lower timeframe", options=["3"])
+
+// Frozen pre-FE boundary, recovered from repository evidence, not chosen here:
+//   trader_v2/V53_ltf_sequence.pine:33  FE = 1788134400000
+//   bot/guards.py                       FE_MS = 1788134400000
+// Convention is EXCLUSIVE, matching V53's inFold: (time < FE).
+FE = 1788134400000
+
+aO = request.security_lower_tf(syminfo.tickerid, ltfStr, open)
+aH = request.security_lower_tf(syminfo.tickerid, ltfStr, high)
+aL = request.security_lower_tf(syminfo.tickerid, ltfStr, low)
+aC = request.security_lower_tf(syminfo.tickerid, ltfStr, close)
+aT = request.security_lower_tf(syminfo.tickerid, ltfStr, time)
+
+// Parent-level pre-FE gate: nothing is emitted for a parent at or after FE, so
+// no post-FE lower-timeframe value can ever reach a plot. Pre-FE bounded at
+// source -- post-FE rows are never produced and never need trimming.
+preFE = time < FE
+
+gf(arr, k) => array.size(arr) > k ? array.get(arr, k) : na
+gt(k) => array.size(aT) > k ? array.get(aT, k) / 1000 : na
+
+n = preFE ? array.size(aC) : na
+plot(n, "n")
+
+// THE ATTRIBUTION ITSELF: the parent bar this array was delivered on.
+plot(preFE ? time / 1000 : na, "pt")
+
+plot(preFE ? gt(0)     : na, "t0")
+plot(preFE ? gf(aO, 0) : na, "o0")
+plot(preFE ? gf(aH, 0) : na, "h0")
+plot(preFE ? gf(aL, 0) : na, "l0")
+plot(preFE ? gf(aC, 0) : na, "c0")
+
+plot(preFE ? gt(1)     : na, "t1")
+plot(preFE ? gf(aO, 1) : na, "o1")
+plot(preFE ? gf(aH, 1) : na, "h1")
+plot(preFE ? gf(aL, 1) : na, "l1")
+plot(preFE ? gf(aC, 1) : na, "c1")
+
+// Overflow/integrity detector only; never expected to be non-na at 3m under 5m.
+plot(preFE ? gt(2)     : na, "t2")
+plot(preFE ? gf(aO, 2) : na, "o2")
+plot(preFE ? gf(aH, 2) : na, "h2")
+plot(preFE ? gf(aL, 2) : na, "l2")
+plot(preFE ? gf(aC, 2) : na, "c2")
