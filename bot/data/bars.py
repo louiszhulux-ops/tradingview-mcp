@@ -226,6 +226,11 @@ class ParentBar:
     a minute in which nothing traded is absent from the LTF array, and the
     sub-bars are required to be ordered and non-overlapping rather than
     contiguous.
+
+    A sub-bar may also *begin before its parent opens*: a 3m bar straddling a 5m
+    boundary is attributed forward, to the parent it ends in. Membership is
+    therefore overlap-based and bounded — at most one LTF period early, never
+    ending after the parent closes.
     """
 
     bar: Bar
@@ -256,10 +261,28 @@ class ParentBar:
                 )
             if sub.instrument != self.bar.instrument:
                 raise BarContractError(f"{where} instrument {sub.instrument!r} != parent")
-            if not (self.bar.open_ts_ms <= sub.open_ts_ms < self.bar.close_ts_ms):
-                raise BarContractError(f"{where} starts outside its parent 5m bar")
+            # A sub-bar may begin BEFORE its parent opens. 3 does not divide 5,
+            # so a 3m bar can straddle a 5m boundary, and TradingView attributes
+            # such a bar FORWARD — to the parent it ends in, not the one it
+            # starts in. Measured over both Phase C 3m candidates: 11,912 of
+            # 29,780 bars (40.0%) start before their recorded parent, and NONE
+            # ends after it. Requiring `parent.open <= sub.open` would reject
+            # the attribution the artifact actually received.
+            #
+            # The contract is therefore: the sub-bar must genuinely overlap its
+            # parent, may start at most one LTF period early, and must still end
+            # no later than the parent closes. That admits the real straddler
+            # and nothing else — it is not arbitrary cross-parent membership.
+            period = self.ltf_timeframe.minutes * 60_000
             if sub.close_ts_ms > self.bar.close_ts_ms:
                 raise BarContractError(f"{where} ends after its parent 5m bar")
+            if sub.open_ts_ms >= self.bar.close_ts_ms or sub.close_ts_ms <= self.bar.open_ts_ms:
+                raise BarContractError(f"{where} does not overlap its parent 5m bar")
+            if sub.open_ts_ms < self.bar.open_ts_ms - period:
+                raise BarContractError(
+                    f"{where} starts more than one {self.ltf_timeframe.value} "
+                    f"period before its parent 5m bar"
+                )
             # Strictly increasing and non-overlapping — deliberately NOT a
             # contiguous grid. A tradeless minute is simply absent from what
             # `request.security_lower_tf` returns, so an interior gap is a real

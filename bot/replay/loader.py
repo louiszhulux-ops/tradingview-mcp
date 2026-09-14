@@ -205,39 +205,76 @@ def load_cell_dataset(
     return LoadedDataset(cell=cell, resolved=resolved, parents=parents)
 
 
-def read_rows(path: Path) -> list[tuple[int, Decimal, Decimal, Decimal]]:
-    """Read `timestamp,high,low,close`. Prices stay exact text → `Decimal`."""
-    out: list[tuple[int, Decimal, Decimal, Decimal]] = []
+def read_rows(path: Path) -> list[tuple]:
+    """Read `timestamp,high,low,close`. Prices stay exact text → `Decimal`.
+
+    When the file also carries a `parent_ts` column, it is parsed and returned
+    as a fifth element, so the rows are
+    `(timestamp, high, low, close, parent_ts)`. That column records the 5m
+    parent TradingView actually attributed the bar to; it is evidence, and
+    dropping it would leave the attribution to be re-derived from geometry,
+    which is wrong on 40% of 3m bars. Files without the column are read exactly
+    as before and yield 4-tuples.
+
+    A malformed or empty `parent_ts` is an error, never a silent fallback to
+    the geometric rule.
+    """
+    out: list[tuple] = []
     with path.open(newline="") as handle:
         reader = csv.DictReader(handle)
-        missing = {"timestamp", "high", "low", "close"} - set(reader.fieldnames or ())
+        fields = set(reader.fieldnames or ())
+        missing = {"timestamp", "high", "low", "close"} - fields
         if missing:
             raise DatasetLoadError(f"{path} lacks columns {sorted(missing)}")
-        for row in reader:
-            out.append((int(row["timestamp"]), Decimal(row["high"]),
-                        Decimal(row["low"]), Decimal(row["close"])))
+        has_parent = "parent_ts" in fields
+        for index, row in enumerate(reader, start=2):
+            base = (int(row["timestamp"]), Decimal(row["high"]),
+                    Decimal(row["low"]), Decimal(row["close"]))
+            if not has_parent:
+                out.append(base)
+                continue
+            raw = (row.get("parent_ts") or "").strip()
+            if not raw:
+                raise DatasetLoadError(
+                    f"{path} line {index}: parent_ts is empty; a recorded "
+                    f"attribution must not be missing")
+            try:
+                parent_ts = int(raw)
+            except ValueError as exc:
+                raise DatasetLoadError(
+                    f"{path} line {index}: parent_ts {raw!r} is not an integer "
+                    f"timestamp") from exc
+            out.append(base + (parent_ts,))
     return out
 
 
 def build_parents(
     instrument: str,
-    parent_rows: Iterable[tuple[int, Decimal, Decimal, Decimal]],
-    ltf_rows: Iterable[tuple[int, Decimal, Decimal, Decimal]],
+    parent_rows: Iterable[tuple],
+    ltf_rows: Iterable[tuple],
     ltf: Timeframe,
 ) -> tuple[ParentBar, ...]:
     """Nest LTF sub-bars under their 5m parents, exactly as they fall.
 
-    Association is by containment in the parent's half-open span, computed from
-    the sub-bar's own timestamp. **Nothing is created**: a parent with no
-    sub-bars gets an empty array, a parent with four gets four, and a minute in
-    which nothing traded stays absent. `open` and `volume` are `None` because
-    the source never recorded them.
+    **Attribution is consumed, not re-derived, whenever it was recorded.** An
+    LTF row carrying a fifth element uses that `parent_ts` verbatim — it is the
+    parent TradingView delivered the bar under. Only rows without one fall back
+    to the geometric rule `ts - (ts % 300)`, which is correct for 1m (a 1m bar
+    cannot straddle a 5m boundary) and wrong for 40% of 3m bars, which
+    TradingView attributes forward to the parent they end in.
+
+    **Nothing is created**: a parent with no sub-bars gets an empty array, a
+    parent with four gets four, and a minute in which nothing traded stays
+    absent. `open` and `volume` are `None` because the source never recorded
+    them.
     """
     parents = tuple(parent_rows)
     span = 5 * 60
     index: dict[int, list[Bar]] = {row[0]: [] for row in parents}
-    for ts, high, low, close in ltf_rows:
-        anchor = ts - (ts % span)
+    for row in ltf_rows:
+        ts, high, low, close = row[0], row[1], row[2], row[3]
+        recorded = row[4] if len(row) > 4 else None
+        anchor = recorded if recorded is not None else ts - (ts % span)
         bucket = index.get(anchor)
         if bucket is None:
             continue        # sub-bar outside the exported parent range; not ours
