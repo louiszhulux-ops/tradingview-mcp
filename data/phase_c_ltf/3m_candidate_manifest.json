@@ -107,7 +107,7 @@
       "first_missing_parent": 1779660000,
       "first_missing_parent_utc": "2026-05-24T22:00:00Z",
       "last_missing_parent": 1780088100,
-      "last_missing_parent_utc": "2026-05-29T21:15:00Z",
+      "last_missing_parent_utc": "2026-05-29T20:55:00Z",
       "ltf_per_parent_distribution": {
         "1": 5956,
         "2": 11912
@@ -152,7 +152,7 @@
       "first_missing_parent": 1779660000,
       "first_missing_parent_utc": "2026-05-24T22:00:00Z",
       "last_missing_parent": 1780088100,
-      "last_missing_parent_utc": "2026-05-29T21:15:00Z",
+      "last_missing_parent_utc": "2026-05-29T20:55:00Z",
       "ltf_per_parent_distribution": {
         "1": 5956,
         "2": 11912
