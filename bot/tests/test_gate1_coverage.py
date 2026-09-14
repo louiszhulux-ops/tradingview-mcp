@@ -151,11 +151,29 @@ class AgainstTheRealDatasets(unittest.TestCase):
                     self.assertTrue(result.ok)
                     self.assertEqual(result.shortfall, 0)
 
-    def test_no_3m_dataset_exists(self):
-        """12 of 24 cells are NO-DATA because these files do not exist."""
+    def test_3m_candidates_exist_but_are_not_registered_for_gate_1(self):
+        """P-11 acquired 3m candidate files, and the 12 3m cells are still
+        `NO-DATA`.
+
+        The loader resolves an LTF dataset's hash through
+        `data/phase_c_ltf_manifest.json`, which records only the 1m artifacts.
+        The 3m candidates carry their own separate manifest and are therefore
+        not registered evidence: the loader refuses an unhashed file rather than
+        consuming it. Wiring them in is a deliberate future decision, not a side
+        effect of the files appearing on disk.
+        """
+        import json
         for short in ("MGC", "MNQ"):
-            self.assertFalse((LTF_DIR / f"{short}1__3m.csv").exists())
-            self.assertEqual(sorted(p.name for p in LTF_DIR.glob("*3m*")), [])
+            with self.subTest(short=short):
+                self.assertTrue((LTF_DIR / f"{short}1__3m.csv").exists())
+        self.assertTrue((LTF_DIR / "3m_candidate_manifest.json").exists())
+
+        registered = json.loads((REPO / "data" / "phase_c_ltf_manifest.json")
+                                .read_text())
+        paths = [a["path"] for a in registered["artifacts"]]
+        for short in ("MGC", "MNQ"):
+            with self.subTest(short=short):
+                self.assertNotIn(f"data/phase_c_ltf/{short}1__3m.csv", paths)
 
 
 if __name__ == "__main__":

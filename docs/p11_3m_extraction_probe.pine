@@ -1,0 +1,74 @@
+//@version=6
+// P-11 3m LTF EXTRACTION PROBE -- DATA EXTRACTION ONLY.
+//
+// Sibling of docs/p9_extraction_probe.pine, which is NOT modified: that file is
+// the record of what P-9 actually ran and must stay byte-identical.
+//
+// Two deliberate differences from P-9:
+//   1. `open` is PLOTTED, not merely requested. P-9 requested aO to preserve
+//      V53's exact five-field request shape but never plotted or persisted it
+//      (p9_extraction_probe.pine:21, and PHASE_P9_LTF_EXTRACTION.md sec 15).
+//      The 3m candidate CSV contract requires `open`, so it is exposed here.
+//   2. Three slots instead of six. 3 does not divide 5, so a 5m parent holds
+//      one or two 3m sub-bars (aggregate ratio 1.6662 ~ 5/3, UNRESOLVED U3).
+//      Slot 2 exists ONLY as an overflow/integrity detector and is never
+//      expected to be non-na; if it ever is, that is a finding to report, not
+//      a value to use.
+//
+// Contains no strategy logic whatsoever: no ATR, no pivots, no swings, no
+// sweep, no CHOCH, no BOS, no displacement, no FVG, no entry, no stop, no
+// target, no risk, no P&L, no signals, no performance. It requests the
+// lower-timeframe arrays and republishes them as plots so the raw values can be
+// read back. Nothing is computed from them.
+indicator("P11 3M LTF EXTRACTION", overlay=false)
+
+ltfStr = input.string("3", "lower timeframe", options=["3"])
+
+// Frozen pre-FE boundary. Recovered from repository evidence, not chosen here:
+//   trader_v2/V53_ltf_sequence.pine:33                 FE = 1788134400000
+//   trader_v2/p15/executed/V53_EXECUTED_BUILD.pine:31  FE = 1788134400000
+//   bot/guards.py                                      FE_MS = 1788134400000
+//   trader_v2/p16/p16_analyze.py                       OOS_START_MS = 1788134400000
+// Convention is EXCLUSIVE, matching V53's inFold: (time < FE).
+FE = 1788134400000
+
+// Same request mechanism and same five-field request shape as the frozen V53
+// LTF stream (V53_ltf_sequence.pine:99-103). Unlike P-9, aO is published.
+aO = request.security_lower_tf(syminfo.tickerid, ltfStr, open)
+aH = request.security_lower_tf(syminfo.tickerid, ltfStr, high)
+aL = request.security_lower_tf(syminfo.tickerid, ltfStr, low)
+aC = request.security_lower_tf(syminfo.tickerid, ltfStr, close)
+aT = request.security_lower_tf(syminfo.tickerid, ltfStr, time)
+
+// Parent-level pre-FE gate: nothing is emitted for a parent bar at or after FE,
+// so no post-FE lower-timeframe value can ever reach a plot. The extraction is
+// pre-FE bounded at source -- post-FE rows are never produced and therefore
+// never need trimming afterward.
+preFE = time < FE
+
+gf(arr, k) => array.size(arr) > k ? array.get(arr, k) : na
+gt(k) => array.size(aT) > k ? array.get(aT, k) / 1000 : na
+
+n = preFE ? array.size(aC) : na
+plot(n, "n")
+
+plot(preFE ? gt(0)      : na, "t0")
+plot(preFE ? gf(aO, 0)  : na, "o0")
+plot(preFE ? gf(aH, 0)  : na, "h0")
+plot(preFE ? gf(aL, 0)  : na, "l0")
+plot(preFE ? gf(aC, 0)  : na, "c0")
+
+plot(preFE ? gt(1)      : na, "t1")
+plot(preFE ? gf(aO, 1)  : na, "o1")
+plot(preFE ? gf(aH, 1)  : na, "h1")
+plot(preFE ? gf(aL, 1)  : na, "l1")
+plot(preFE ? gf(aC, 1)  : na, "c1")
+
+// Overflow/integrity detector only. A 5m parent cannot hold three 3m sub-bars;
+// a non-na value here means the assumption is wrong and must be investigated,
+// not silently consumed.
+plot(preFE ? gt(2)      : na, "t2")
+plot(preFE ? gf(aO, 2)  : na, "o2")
+plot(preFE ? gf(aH, 2)  : na, "h2")
+plot(preFE ? gf(aL, 2)  : na, "l2")
+plot(preFE ? gf(aC, 2)  : na, "c2")

@@ -1,0 +1,169 @@
+{
+  "schema_version": "1.0.0",
+  "artifact": "phase_c_ltf_3m_candidate_extraction",
+  "status": "CANDIDATE -- NOT FROZEN, NOT AUTHORITATIVE, NOT GROUND TRUTH",
+  "status_detail": "P-11 candidate 3m extraction. Structurally valid and free of post-FE data, but HEAD-TRUNCATED: TradingView's 5m chart-series history limit now stands at 2026-05-31T22:00:00Z, seven days later than the Phase-C parent start of 2026-05-24T22:00:00Z, so the leading parents cannot be served at all. The 100,000-value request.security_lower_tf cap was NOT the binding constraint here; the chart-series history limit was. OHLC value parity against the historical Phase 13F/14 runs is unproven because no historical LTF value artifact exists.",
+  "extraction_date_utc": "2026-09-13",
+  "frozen_fe_boundary": {
+    "value_ms": 1788134400000,
+    "value_s": 1788134400,
+    "utc": "2026-08-31T00:00:00Z",
+    "convention": "exclusive (open_ts < FE, close_ts <= FE)",
+    "sources": [
+      "trader_v2/V53_ltf_sequence.pine:33",
+      "bot/guards.py FE_MS"
+    ]
+  },
+  "requested_window": {
+    "from_utc": "2026-05-24T22:00:00Z",
+    "from_s": 1779660000,
+    "to_utc": "2026-08-31T00:00:00Z (FE, exclusive)",
+    "source": [
+      "data/phase_c/MGC1__5m.csv",
+      "data/phase_c/MNQ1__5m.csv"
+    ]
+  },
+  "extraction": {
+    "mechanism": "request.security_lower_tf(syminfo.tickerid, \"3\", <field>)",
+    "probe": "docs/p11_3m_extraction_probe.pine",
+    "probe_sha256": "7e1cad1576a7daf12392d01e2e95f9bb47112727308275333bfa753df61a72fc",
+    "requested_fields": [
+      "open",
+      "high",
+      "low",
+      "close",
+      "time"
+    ],
+    "persisted_fields": [
+      "timestamp",
+      "open",
+      "high",
+      "low",
+      "close"
+    ],
+    "study": "P11 3M LTF EXTRACTION -- extraction-only, zero strategy semantics; removed after extraction",
+    "chart": "P2NtY6fg (disposable research layout, \"B1 ROLL INVESTIGATION\")",
+    "protected_chart_2d43Iesr": "untouched -- never navigated, reloaded, mutated or extracted from",
+    "pine_save_used": false,
+    "readback": "raw CDP: dataSources() -> study.data() -> firstIndex/lastIndex/valueAt",
+    "symbols_served": {
+      "MGC1!": "COMEX_MINI_DL:MGC1!",
+      "MNQ1!": "CME_MINI_DL:MNQ1!"
+    },
+    "delayed_feed_dl": true,
+    "dl_note": "requested non-_DL tickers; TradingView resolved both to _DL, as in P-9",
+    "cap_behaviour": "natural; no pagination around the LTF cap, no stitching, no unioning, no synthetic bars",
+    "history_paging": "mainSeries().requestMoreData(1000) until requestMoreDataAvailable() returned false",
+    "post_fe_protection": "parent-level gate (time < FE) in Pine; no post-FE LTF value ever plotted; 0 post-FE rows observed"
+  },
+  "geometry_3m_vs_5m": {
+    "note": "3 does not divide 5, so a 3m bar may straddle a 5m parent boundary. Association is NOT one-to-one containment and was not assumed.",
+    "observed": "Over each 15-minute LCM block a parent holds 1 or 2 sub-bars in the repeating pattern 2,1,2; aggregate ratio is exactly 5/3.",
+    "parents_with_one_sub_bar": 5956,
+    "parents_with_two_sub_bars": 11912,
+    "third_slot_overflow_detector_fired": false,
+    "duplicate_bars_across_parents": 0,
+    "duplicate_note": "TradingView attributes each 3m bar to exactly one 5m parent; no straddling bar was returned twice."
+  },
+  "validation": {
+    "strictly_increasing": true,
+    "duplicates": 0,
+    "ohlc_ordering_valid": true,
+    "post_fe_rows": 0,
+    "malformed_rows": 0,
+    "rows_repaired": 0,
+    "rule": "invalid rows would fail the extraction; none were encountered"
+  },
+  "artifacts": [
+    {
+      "path": "data/phase_c_ltf/MGC1__3m.csv",
+      "instrument": "MGC1!",
+      "lower_timeframe": "3m",
+      "parent_timeframe": "5m",
+      "fields": [
+        "timestamp",
+        "open",
+        "high",
+        "low",
+        "close"
+      ],
+      "sha256": "bc54ed68a637648b242b2d5f9bc78ffcfe8878061bb51f0aefae44446c5817eb",
+      "bytes": 1135766,
+      "rows": 29780,
+      "first_timestamp": 1780264800,
+      "first_timestamp_utc": "2026-05-31T22:00:00Z",
+      "last_timestamp": 1788134220,
+      "last_timestamp_utc": "2026-08-30T23:57:00Z",
+      "unique_timestamps": 29780,
+      "duplicate_count": 0,
+      "post_fe_rows": 0,
+      "out_of_order_rows": 0,
+      "malformed_rows": 0,
+      "phase_c_parents_total": 19218,
+      "phase_c_parents_represented": 17868,
+      "phase_c_parents_without_3m": 1350,
+      "first_represented_parent": 1780264800,
+      "last_represented_parent": 1788134100,
+      "first_missing_parent": 1779660000,
+      "first_missing_parent_utc": "2026-05-24T22:00:00Z",
+      "last_missing_parent": 1780088100,
+      "last_missing_parent_utc": "2026-05-29T21:15:00Z",
+      "ltf_per_parent_distribution": {
+        "1": 5956,
+        "2": 11912
+      },
+      "ltf_per_parent_ratio": 1.666667,
+      "timestamps_on_180s_grid": 29780,
+      "timestamps_coincident_with_5m_grid": 5956,
+      "timestamps_straddling_a_5m_boundary": 11912,
+      "head_truncated": true,
+      "reaches_complete_pre_fe_window": false,
+      "ltf_value_cap_reached": false
+    },
+    {
+      "path": "data/phase_c_ltf/MNQ1__3m.csv",
+      "instrument": "MNQ1!",
+      "lower_timeframe": "3m",
+      "parent_timeframe": "5m",
+      "fields": [
+        "timestamp",
+        "open",
+        "high",
+        "low",
+        "close"
+      ],
+      "sha256": "772db2128f5ac55704a7ed787b571f71b3def8dce4390ef71c9425f120ce3dbf",
+      "bytes": 1273478,
+      "rows": 29780,
+      "first_timestamp": 1780264800,
+      "first_timestamp_utc": "2026-05-31T22:00:00Z",
+      "last_timestamp": 1788134220,
+      "last_timestamp_utc": "2026-08-30T23:57:00Z",
+      "unique_timestamps": 29780,
+      "duplicate_count": 0,
+      "post_fe_rows": 0,
+      "out_of_order_rows": 0,
+      "malformed_rows": 0,
+      "phase_c_parents_total": 19200,
+      "phase_c_parents_represented": 17868,
+      "phase_c_parents_without_3m": 1332,
+      "first_represented_parent": 1780264800,
+      "last_represented_parent": 1788134100,
+      "first_missing_parent": 1779660000,
+      "first_missing_parent_utc": "2026-05-24T22:00:00Z",
+      "last_missing_parent": 1780088100,
+      "last_missing_parent_utc": "2026-05-29T21:15:00Z",
+      "ltf_per_parent_distribution": {
+        "1": 5956,
+        "2": 11912
+      },
+      "ltf_per_parent_ratio": 1.666667,
+      "timestamps_on_180s_grid": 29780,
+      "timestamps_coincident_with_5m_grid": 5956,
+      "timestamps_straddling_a_5m_boundary": 11912,
+      "head_truncated": true,
+      "reaches_complete_pre_fe_window": false,
+      "ltf_value_cap_reached": false
+    }
+  ]
+}

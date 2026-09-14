@@ -69,11 +69,18 @@ class Loading(unittest.TestCase):
         self.assertEqual(len(loaded.parents), 19218)
 
     def test_missing_file_yields_no_bars_and_names_what_is_absent(self):
+        """Uses an empty root, so the assertion is about the loader, not about
+        which files happen to exist in the repository today. (P-11 acquired 3m
+        candidates, so the 3m paths are no longer a reliable stand-in for
+        "absent".)"""
+        empty = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, empty)
         loaded = load_cell_dataset(cell_id="v53-MGC-L-3m-B", instrument="MGC1!",
-                                   fold="B", ltf=Timeframe.M3)
+                                   fold="B", ltf=Timeframe.M3, root=empty)
         self.assertFalse(loaded.data_present)
         self.assertEqual(loaded.parents, ())
-        self.assertEqual(loaded.cell.missing, ("data/phase_c_ltf/MGC1__3m.csv",))
+        self.assertIn("data/phase_c_ltf/MGC1__3m.csv", loaded.cell.missing)
+        self.assertIn("data/phase_c/MGC1__5m.csv", loaded.cell.missing)
 
     def test_provenance_carries_everything_criterion_0_requires(self):
         loaded = load_cell_dataset(cell_id="v53-MNQ-S-1m-C", instrument="MNQ1!",
