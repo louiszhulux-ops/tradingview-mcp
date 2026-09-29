@@ -1,0 +1,134 @@
+//@version=6
+// =====================================================================
+// V15 TREND GRID -- orthogonal switches, IS/OOS split built in
+//
+// Two findings survived the trend lab and are the only things in this
+// project that improved a real metric for an explainable reason:
+//   (a) the SHORT side is the bleed (long PF 1.206 / short PF 0.769)
+//   (b) TRAILING exits beat fixed stops on IDENTICAL entries (0.999 -> 1.331)
+// Neither has been tested in combination, and neither has been tested with
+// a regime filter. This rig makes side / exit / entry / regime independent
+// switches so each can be measured without confounding the others.
+//
+// The objective is NOT net profit. It is return-to-drawdown, because the
+// LucidDaily 50K constraint is a $2,000 max loss limit against a $3,000
+// target: RtD must clear 1.5 or the account breaches before it passes.
+//
+// side     1 both      2 longOnly   3 shortOnly
+// exitMode 1 fixedATR  2 atrTrail   3 trailAfter1R
+// entry    1 emaCross  2 pullback   3 donchianBreak
+// regime   0 off       1 HTF trend filter (daily EMA, lookahead off)
+// =====================================================================
+strategy("V15 TREND GRID", overlay=true,
+     initial_capital=50000, currency=currency.USD,
+     default_qty_type=strategy.fixed, default_qty_value=1,
+     pyramiding=1,
+     commission_type=strategy.commission.cash_per_order, commission_value=1.24,
+     slippage=1)
+
+side      = input.int(2,  "side 1both 2long 3short",       minval=1, maxval=3, group="Grid")
+exitMode  = input.int(2,  "exit 1fixed 2trail 3trailAfter1R", minval=1, maxval=3, group="Grid")
+entryMode = input.int(1,  "entry 1cross 2pullback 3donch", minval=1, maxval=3, group="Grid")
+regime    = input.int(0,  "regime 0off 1htf",              minval=0, maxval=1, group="Grid")
+
+emaFastLen= input.int(20,  "EMA fast", group="Trend")
+emaSlowLen= input.int(50,  "EMA slow", group="Trend")
+donchLen  = input.int(20,  "Donchian length", group="Trend")
+htfEmaLen = input.int(50,  "HTF EMA length", group="Trend")
+htfRes    = input.string("D", "HTF resolution", group="Trend")
+
+stopATR   = input.float(3.0,  "Stop (xATR)",  group="Risk")
+trailATR  = input.float(3.0,  "Trail (xATR)", group="Risk")
+riskUSD   = input.float(500,  "Risk per trade ($)", group="Risk")
+maxCtr    = input.int(40,     "Max contracts/units", group="Risk")
+
+startTime = input.time(timestamp("2025-10-01 00:00 +0000"), "Start (UTC)", group="Window")
+endTime   = input.time(timestamp("2026-09-03 23:59 +0000"), "End (UTC)",   group="Window")
+
+atr  = ta.atr(14)
+eF   = ta.ema(close, emaFastLen)
+eS   = ta.ema(close, emaSlowLen)
+dcHi = ta.highest(high, donchLen)[1]
+dcLo = ta.lowest(low,  donchLen)[1]
+
+// HTF regime, lookahead OFF and referenced on the confirmed bar
+htfClose = request.security(syminfo.tickerid, htfRes, close[1], lookahead=barmerge.lookahead_off)
+htfEma   = request.security(syminfo.tickerid, htfRes, ta.ema(close, htfEmaLen)[1], lookahead=barmerge.lookahead_off)
+htfUp    = htfClose > htfEma
+htfDn    = htfClose < htfEma
+
+inWin = time >= startTime and time <= endTime
+ptVal = na(syminfo.pointvalue) or syminfo.pointvalue <= 0 ? 1.0 : syminfo.pointvalue
+
+sizeFor(d) =>
+    rpc = d * ptVal
+    rpc > 0 ? math.min(math.max(1, math.floor(riskUSD / rpc)), maxCtr) : 1
+
+// ---------- entries ----------
+rawLong  = entryMode == 1 ? ta.crossover(eF, eS)  :
+           entryMode == 2 ? (eF > eS and ta.crossover(close, eF)) :
+                            ta.crossover(close, dcHi)
+rawShort = entryMode == 1 ? ta.crossunder(eF, eS) :
+           entryMode == 2 ? (eF < eS and ta.crossunder(close, eF)) :
+                            ta.crossunder(close, dcLo)
+
+// ---------- filters ----------
+okLong  = (side == 1 or side == 2) and (regime == 0 or htfUp)
+okShort = (side == 1 or side == 3) and (regime == 0 or htfDn)
+
+goLong  = rawLong  and okLong
+goShort = rawShort and okShort
+
+d = stopATR * atr
+trailTicks = trailATR * atr / syminfo.mintick
+
+var float entryPx  = na
+var float entryStp = na
+
+if inWin and d > 0
+    n = sizeFor(d)
+    if goLong and strategy.position_size <= 0
+        strategy.entry("L", strategy.long, qty=n)
+        entryPx  := close
+        entryStp := close - d
+    if goShort and strategy.position_size >= 0
+        strategy.entry("S", strategy.short, qty=n)
+        entryPx  := close
+        entryStp := close + d
+
+// ---------- exits ----------
+if strategy.position_size > 0
+    if exitMode == 1
+        strategy.exit("xL", "L", stop=entryStp)
+    else if exitMode == 2
+        strategy.exit("xL", "L", trail_points=trailTicks, trail_offset=trailTicks)
+    else
+        // fixed stop until +1R, then hand over to the trail
+        r = entryPx - entryStp
+        if close >= entryPx + r
+            strategy.exit("xL", "L", trail_points=trailTicks, trail_offset=trailTicks)
+        else
+            strategy.exit("xL", "L", stop=entryStp)
+    // opposite signal flattens when we are not allowed to reverse
+    if rawShort and not okShort
+        strategy.close("L", comment="flip flat")
+
+if strategy.position_size < 0
+    if exitMode == 1
+        strategy.exit("xS", "S", stop=entryStp)
+    else if exitMode == 2
+        strategy.exit("xS", "S", trail_points=trailTicks, trail_offset=trailTicks)
+    else
+        r = entryStp - entryPx
+        if close <= entryPx - r
+            strategy.exit("xS", "S", trail_points=trailTicks, trail_offset=trailTicks)
+        else
+            strategy.exit("xS", "S", stop=entryStp)
+    if rawLong and not okLong
+        strategy.close("S", comment="flip flat")
+
+if strategy.position_size != 0 and time > endTime
+    strategy.close_all(comment="window end")
+
+plot(eF, "EMA fast", color.new(color.aqua, 0))
+plot(eS, "EMA slow", color.new(color.orange, 0))

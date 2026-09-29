@@ -1,0 +1,13 @@
+FUNNEL S B 1m: foldbars 4668 | w/LTF 4668 | sweeps 226 | CHOCH 200 | retests 180 | BOS+disp 5 | FVG 5 | fills 2
+ break-no-disp 1042 | noFVG 0 | Rband 2 | FVGexpiry 1 | expire 26/20/175 | dropped 0 | ASSERTS all 0
+PERF MGC1! S 1m B: cov 2026-07-16 00:00 -> 2026-08-07 20:55 | fills 2 | W1 Lstop1 TO0 | wr 50% | Rpre 4 | Rpost 3.402 | avg 1.701 | med 1.701 | exp 1.701R | maxConsecL 1 | DD_R 1.203 | DD_$ 17.80 | tot$ 17.14
+LEDGER:
+MGC1!|S|1m|B|sw 2026-08-07 20:05|SW|swX 4403.9|ch 2026-08-07 20:27|chL 4397.3|rt 2026-08-07 20:28|bos 2026-08-09 22:02|bosL 4399|fvg 4398.7-4404|en 2026-08-09 22:10|enPx 4404|stop 4404.7588|WIN|4.605R|$34.94|target|1bars
+MGC1!|S|1m|B|sw 2026-08-07 20:00|SW|swX 4404.6|ch 2026-08-07 20:27|chL 4397.3|rt 2026-08-07 20:28|bos 2026-08-09 22:02|bosL 4399|fvg 4398.7-4404|en 2026-08-09 22:10|enPx 4404|stop 4405.4802|LOSS|-1.203R|$-17.8|stop|10bars
+NOTE 1: duplicate pair again -- same entry 4404, different stop, opposite outcome.
+NOTE 2: sweep Fri 2026-08-07 20:05 -> BOS Sun 2026-08-09 22:02. dispWait=12 is 12 CHART BARS, not 60 wall-clock
+ minutes; across the weekend session gap 12 bars spans two days. My "60 minutes" phrasing in 13D holds only
+ inside a continuous session. Frozen behaviour, reported not changed.
+NOTE 3: both entries land 2026-08-09 22:10, i.e. after the fold B/C boundary (08-09 00:00). Outcome resolution
+ for fold-B-armed sequences necessarily reads bars past the boundary -- true of every V44-V52 fold run too.
+ No fold C run was performed and no fold C statistic was inspected.

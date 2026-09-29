@@ -1,0 +1,248 @@
+//@version=6
+// =====================================================================
+// V22 PROD -- fully automated LucidDaily 50K evaluation engine
+//
+// HONEST STATUS: the signal has NO demonstrated edge. A pre-registered
+// screen (8 signals x 4 markets x 2 eras, ~16,000 trades) found gross
+// expectancy of +0.016R -- indistinguishable from zero -- and this setup's
+// own 95% CI on profit factor is 0.926..1.851. What follows is an execution
+// layer engineered so that the ACCOUNT survives regardless, not a system
+// with a proven edge. See V21_SCREEN_RESULTS.md before trusting any number.
+//
+// What is actually engineered here:
+//  1. Structural stops with a hard dollar cap. Setups whose invalidation is
+//     too far away are REJECTED, never sized down into. This is what makes
+//     one MGC contract cost ~$70 of risk instead of ~$868.
+//  2. Buffer-based sizing: risk = 15% of the distance to the max-loss floor.
+//     After a full loss the buffer becomes buffer x 0.85, which decays
+//     geometrically and cannot be crossed. A losing STREAK cannot bust the
+//     account; only a single trade losing ~6.7x its intended risk can.
+//  3. Minimum-one-contract rule: when 15% of the buffer will not fund a
+//     contract, take one anyway IF the buffer can absorb the worst historical
+//     excursion. Costs ~1% bust risk and roughly doubles the pass rate,
+//     because the dominant failure mode is stalling, not busting.
+//  4. Three execution fixes, each of which silently corrupts any strategy:
+//     exits armed on the ENTRY bar (position_size is still 0 there);
+//     a flat window ending early enough that close_all fills in liquid hours
+//     rather than at Sunday's open; a stop attached to every trailing exit.
+//  5. Full account model: trailing MLL locking at start+100, profit target,
+//     daily loss guard, stop-at-target so a run models ONE attempt.
+//
+// Measured outcomes, 20,000 bootstrap runs, by assumption about the edge:
+//   edge is real (PF 1.33)   70.1% pass / 0.4% bust / 29.5% stalled
+//   no edge      (PF 1.00)   24.3% pass / 1.0% bust / 74.7% stalled
+//   negative     (PF 0.93)   16.1% pass / 1.0% bust / 82.9% stalled
+// Probability-weighted toward the evidence: roughly 31% pass, ~1% bust.
+// =====================================================================
+strategy("V22 PROD", overlay=true,
+     initial_capital=50000, currency=currency.USD,
+     default_qty_type=strategy.fixed, default_qty_value=1,
+     pyramiding=1,
+     commission_type=strategy.commission.cash_per_contract, commission_value=1.24,
+     slippage=2,
+     margin_long=5, margin_short=5,
+     max_labels_count=500)
+
+sideIn     = input.int(3,   "side 1both 2long 3short", minval=1, maxval=3, group="Signal")
+pivL       = input.int(5,   "pivot left",  group="Signal")
+pivR       = input.int(3,   "pivot right", group="Signal")
+reclaimBar = input.int(6,   "max bars sweep -> reclaim", group="Signal")
+
+maxStopUSD = input.float(12.0, "MAX stop distance ($) - reject beyond", group="Stop")
+minStopUSD = input.float(2.0,  "min stop distance ($)", group="Stop")
+bufUSD     = input.float(1.0,  "buffer beyond swept extreme ($)", group="Stop")
+tpR        = input.float(3.0,  "target (R)", group="Stop")
+
+flatEOD    = input.bool(true,  "flat at end of flat-window", group="Session")
+sessStr    = input.session("1300-2100", "entry session (UTC)", group="Session")
+flatStr    = input.session("1300-1930", "must-be-flat-by window (UTC)", group="Session")
+
+bufFrac    = input.float(0.15, "risk = fraction of MLL buffer", group="Risk")
+riskCap    = input.float(750,  "risk cap ($)", group="Risk")
+minOneCtr  = input.bool(true,  "take 1 contract when frac is too small", group="Risk")
+worstExc   = input.float(1.30, "worst excursion assumed (xR) for the 1-contract test", group="Risk")
+maxCtr     = input.int(40,     "max contracts", group="Risk")
+dayStopR   = input.float(2.0,  "stop for the day after -R", group="Risk")
+
+mllAmt     = input.float(2000, "max loss limit ($)", group="Account")
+lockOffset = input.float(100,  "MLL locks at start + this ($)", group="Account")
+targetAmt  = input.float(3000, "profit target ($)", group="Account")
+stopAtTgt  = input.bool(true,  "stop trading once target is reached", group="Account")
+
+startTime  = input.time(timestamp("2025-10-01 00:00 +0000"), "Start (UTC)", group="Window")
+endTime    = input.time(timestamp("2026-09-03 23:59 +0000"), "End (UTC)",   group="Window")
+
+inWin  = time >= startTime and time <= endTime
+sessOn = not na(time(timeframe.period, sessStr, "UTC"))
+flatOn = not na(time(timeframe.period, flatStr, "UTC"))
+ptVal  = na(syminfo.pointvalue) or syminfo.pointvalue <= 0 ? 1.0 : syminfo.pointvalue
+
+startBal = strategy.initial_capital
+balNow   = startBal + strategy.netprofit
+var float peakBal   = 0.0
+var float mllFloor  = 0.0
+var bool  mllLocked = false
+var bool  evalDone  = false
+var bool  evalBust  = false
+var int   evalBars  = 0
+if bar_index == 0
+    peakBal  := startBal
+    mllFloor := startBal - mllAmt
+if not mllLocked
+    peakBal  := math.max(peakBal, balNow)
+    mllFloor := math.max(mllFloor, peakBal - mllAmt)
+    if peakBal >= startBal + mllAmt
+        mllFloor  := startBal + lockOffset
+        mllLocked := true
+if stopAtTgt and balNow >= startBal + targetAmt
+    evalDone := true
+if balNow < mllFloor
+    evalBust := true
+if not evalDone and not evalBust and inWin
+    evalBars += 1
+bufNow  = math.max(0.0, balNow - mllFloor)
+riskNow = math.min(riskCap, bufNow * bufFrac)
+
+ph = ta.pivothigh(high, pivL, pivR)
+pl = ta.pivotlow(low,  pivL, pivR)
+
+var float swLo = na
+var float swHi = na
+var bool  sweptLo = false
+var bool  sweptHi = false
+var float sweepLoPx = na
+var float sweepHiPx = na
+var int   sweepLoBar = 0
+var int   sweepHiBar = 0
+
+if not na(pl)
+    swLo      := pl
+    sweptLo   := false
+    sweepLoPx := na
+if not na(ph)
+    swHi      := ph
+    sweptHi   := false
+    sweepHiPx := na
+
+if not na(swLo) and low < swLo
+    sweptLo    := true
+    sweepLoPx  := na(sweepLoPx) ? low : math.min(sweepLoPx, low)
+    sweepLoBar := bar_index
+if not na(swHi) and high > swHi
+    sweptHi    := true
+    sweepHiPx  := na(sweepHiPx) ? high : math.max(sweepHiPx, high)
+    sweepHiBar := bar_index
+
+sigL = sweptLo and not na(swLo) and close > swLo and (bar_index - sweepLoBar) <= reclaimBar
+sigS = sweptHi and not na(swHi) and close < swHi and (bar_index - sweepHiBar) <= reclaimBar
+
+stpL = sweepLoPx - bufUSD
+stpS = sweepHiPx + bufUSD
+dL   = close - stpL
+dS   = stpS  - close
+
+sizeFor(d) =>
+    rpc = d * ptVal
+    int n = 0
+    if rpc > 0
+        n := int(math.floor(riskNow / rpc))
+        if n < 1 and minOneCtr and bufNow > rpc * worstExc
+            n := 1
+        n := math.min(n, maxCtr)
+    n
+
+var float entryPx  = na
+var float entryStp = na
+var float entryR   = na
+var int   taken    = 0
+var int   rejWide  = 0
+var int   rejSize  = 0
+var float sumRisk  = 0.0
+var float minBuf   = 1e9
+
+var float dayPnL = 0.0
+var float lastEq = 0.0
+newDay = ta.change(time("D")) != 0
+if newDay
+    dayPnL := 0.0
+dayPnL += strategy.netprofit + strategy.openprofit - lastEq
+lastEq := strategy.netprofit + strategy.openprofit
+dayBlocked = dayStopR > 0 and riskNow > 0 and dayPnL <= -dayStopR * riskNow
+
+armL(px, stp, r) => strategy.exit("xL", "L", stop=stp, limit=px + tpR * r)
+armS(px, stp, r) => strategy.exit("xS", "S", stop=stp, limit=px - tpR * r)
+
+live     = inWin and not evalDone and not evalBust
+canEnter = live and sessOn and (not flatEOD or flatOn) and not dayBlocked
+
+if live
+    if strategy.position_size == 0
+        minBuf := math.min(minBuf, bufNow)
+
+    if sigL and (sideIn == 1 or sideIn == 2) and canEnter and strategy.position_size == 0
+        if na(dL) or dL > maxStopUSD or dL < minStopUSD
+            rejWide += 1
+        else
+            n = sizeFor(dL)
+            if n < 1
+                rejSize += 1
+            else
+                strategy.entry("L", strategy.long, qty=n)
+                entryPx  := close
+                entryStp := stpL
+                entryR   := dL
+                sweptLo  := false
+                taken    += 1
+                sumRisk  += dL * ptVal * n
+                armL(close, stpL, dL)
+
+    if sigS and (sideIn == 1 or sideIn == 3) and canEnter and strategy.position_size == 0
+        if na(dS) or dS > maxStopUSD or dS < minStopUSD
+            rejWide += 1
+        else
+            n2 = sizeFor(dS)
+            if n2 < 1
+                rejSize += 1
+            else
+                strategy.entry("S", strategy.short, qty=n2)
+                entryPx  := close
+                entryStp := stpS
+                entryR   := dS
+                sweptHi  := false
+                taken    += 1
+                sumRisk  += dS * ptVal * n2
+                armS(close, stpS, dS)
+
+if strategy.position_size > 0 and not na(entryStp)
+    armL(entryPx, entryStp, entryR)
+if strategy.position_size < 0 and not na(entryStp)
+    armS(entryPx, entryStp, entryR)
+
+if strategy.position_size != 0 and ((flatEOD and not flatOn) or time > endTime or evalDone or evalBust)
+    strategy.close_all(comment="flat")
+
+if barstate.islastconfirmedhistory or barstate.islast
+    st = evalBust ? "BUST" : evalDone ? "PASSED" : "running"
+    bg = evalBust ? color.red : evalDone ? color.green : color.gray
+    t = table.new(position.top_right, 2, 9, border_width=1)
+    table.cell(t, 0, 0, "STATUS", bgcolor=bg, text_color=color.white)
+    table.cell(t, 1, 0, st,       bgcolor=bg, text_color=color.white)
+    table.cell(t, 0, 1, "balance")
+    table.cell(t, 1, 1, str.tostring(balNow, "#"))
+    table.cell(t, 0, 2, "MLL floor")
+    table.cell(t, 1, 2, str.tostring(mllFloor, "#") + (mllLocked ? " (locked)" : ""))
+    table.cell(t, 0, 3, "buffer now")
+    table.cell(t, 1, 3, str.tostring(bufNow, "#"))
+    table.cell(t, 0, 4, "min buffer seen")
+    table.cell(t, 1, 4, str.tostring(minBuf > 1e8 ? 0 : minBuf, "#"))
+    table.cell(t, 0, 5, "next risk")
+    table.cell(t, 1, 5, str.tostring(riskNow, "#"))
+    table.cell(t, 0, 6, "trades taken")
+    table.cell(t, 1, 6, str.tostring(taken))
+    table.cell(t, 0, 7, "mean risk used")
+    table.cell(t, 1, 7, str.tostring(taken > 0 ? sumRisk / taken : 0, "#"))
+    table.cell(t, 0, 8, "rejected wide / size")
+    table.cell(t, 1, 8, str.tostring(rejWide) + " / " + str.tostring(rejSize))
+
+plot(swLo, "swing low",  color.new(color.red, 0),  style=plot.style_stepline)
+plot(swHi, "swing high", color.new(color.lime, 0), style=plot.style_stepline)

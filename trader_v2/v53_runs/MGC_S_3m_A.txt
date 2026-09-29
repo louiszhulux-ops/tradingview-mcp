@@ -1,0 +1,5 @@
+FUNNEL S A 3m: foldbars 10386 | w/LTF 10386 | sweeps 432 | CHOCH 176 | retests 139 | BOS+disp 12 | FVG 8 | fills 1
+ break-no-disp 179 | noFVG 4 | Rband 2 | FVGexpiry 5 | expire 256/37/127 | dropped 0 | ASSERTS all 0
+PERF MGC1! S 3m A: cov 2026-05-24 22:00 -> 2026-07-15 23:55 | fills 1 | W0 Lstop1 TO0 | wr 0% | Rpre -1 | Rpost -1.022 | avg -1.0217 | med -1.0217 | exp -1.0217R | maxConsecL 1 | DD_R 1.022 | DD_$ 141.42 | tot$ -141.42
+LEDGER:
+MGC1!|S|3m|A|sw 2026-07-09 00:20|SW|swX 4094.7|ch 2026-07-09 00:51|chL 4083|rt 2026-07-09 00:54|bos 2026-07-09 01:00|bosL 4081.3|fvg 4081.2-4081.8|en 2026-07-09 01:10|enPx 4081.8|stop 4095.6418|LOSS|-1.022R|$-141.42|stop|58bars

@@ -1,0 +1,65 @@
+//@version=6
+indicator("LTF DATA PROBE", overlay=true)
+
+// READ-ONLY capacity probe. No trading logic, no optimisation.
+// LTF = 3   MODE = sep4
+ltf = "3"
+aO = request.security_lower_tf(syminfo.tickerid, ltf, open)
+aH = request.security_lower_tf(syminfo.tickerid, ltf, high)
+aL = request.security_lower_tf(syminfo.tickerid, ltf, low)
+aC = request.security_lower_tf(syminfo.tickerid, ltf, close)
+
+var int nO = 0
+var int nH = 0
+var int nL = 0
+var int nC = 0
+var int barsTot  = 0
+var int barsWith = 0
+var int maxPer   = 0
+var int minPer   = 999
+var int firstTO  = 0
+var int firstTC  = 0
+var int lastTC   = 0
+var int firstBiC = 0
+
+barsTot += 1
+sO = array.size(aO)
+sH = array.size(aH)
+sL = array.size(aL)
+sC = array.size(aC)
+nO += sO
+nH += sH
+nL += sL
+nC += sC
+if sO > 0 and firstTO == 0
+    firstTO := time
+if sC > 0
+    barsWith += 1
+    if firstTC == 0
+        firstTC := time
+        firstBiC := bar_index
+    lastTC := time
+    if sC > maxPer
+        maxPer := sC
+    if sC < minPer
+        minPer := sC
+
+f(t) => t == 0 ? "none" : str.format_time(t, "yyyy-MM-dd HH:mm", "UTC")
+
+if barstate.islast
+    var table tb = table.new(position.top_right, 2, 14, border_width=1)
+    r = 0
+    table.cell(tb, 0, r, "LTF"),            table.cell(tb, 1, r, ltf + "m"), r += 1
+    table.cell(tb, 0, r, "chart bars"),     table.cell(tb, 1, r, str.tostring(barsTot)), r += 1
+    table.cell(tb, 0, r, "bars w/ data"),   table.cell(tb, 1, r, str.tostring(barsWith)), r += 1
+    table.cell(tb, 0, r, "n open"),         table.cell(tb, 1, r, str.tostring(nO)), r += 1
+    table.cell(tb, 0, r, "n high"),         table.cell(tb, 1, r, str.tostring(nH)), r += 1
+    table.cell(tb, 0, r, "n low"),          table.cell(tb, 1, r, str.tostring(nL)), r += 1
+    table.cell(tb, 0, r, "n close"),        table.cell(tb, 1, r, str.tostring(nC)), r += 1
+    table.cell(tb, 0, r, "n TOTAL 4f"),     table.cell(tb, 1, r, str.tostring(nO + nH + nL + nC)), r += 1
+    table.cell(tb, 0, r, "max per bar"),    table.cell(tb, 1, r, str.tostring(maxPer)), r += 1
+    table.cell(tb, 0, r, "min per bar"),    table.cell(tb, 1, r, str.tostring(minPer)), r += 1
+    table.cell(tb, 0, r, "first bar OPEN"), table.cell(tb, 1, r, f(firstTO)), r += 1
+    table.cell(tb, 0, r, "first bar CLOSE"),table.cell(tb, 1, r, f(firstTC)), r += 1
+    table.cell(tb, 0, r, "last bar CLOSE"), table.cell(tb, 1, r, f(lastTC)), r += 1
+    table.cell(tb, 0, r, "first bar_index"),table.cell(tb, 1, r, str.tostring(firstBiC) + " / " + str.tostring(bar_index))

@@ -1,0 +1,123 @@
+{
+  "schema_version": "1.0.0",
+  "artifact": "phase_c_frozen_dataset_manifest",
+  "status": "PARTIAL",
+  "status_detail": "Parent 5m bars are exported and verified. The LTF (1m/3m) stream is NOT included: it was produced inside Pine by request.security_lower_tf() and cannot be exported without executing a Pine artifact. See docs/PHASE_B1_ROLL_CALENDAR.md section B-2.",
+  "observation_date": "2026-09-07",
+  "export": {
+    "platform": "TradingView Desktop 3.4.0",
+    "layout": "B1 ROLL INVESTIGATION (chart P2NtY6fg) -- NOT the frozen research chart 2d43Iesr",
+    "mechanism": "model().mainSeries().bars() read via CDP, after requestMoreData() paging to the history limit",
+    "entitlement": "delayed (_DL); non-_DL requests resolve to _DL on this account",
+    "back_adjustment": false,
+    "settlement_as_close": true,
+    "session_id": "regular",
+    "timestamp_unit": "unix seconds, UTC, bar-open instant",
+    "timezone_handling": "timestamps are stored as raw unix seconds exactly as TradingView reports them; no timezone normalisation was applied"
+  },
+  "boundaries": {
+    "fold_A": {
+      "from_utc": "2026-05-24T22:00:00Z",
+      "to_utc": "2026-07-15T23:55:00Z",
+      "rule": "time < FB",
+      "FB": 1784160000
+    },
+    "fold_B": {
+      "from_utc": "2026-07-16T00:00:00Z",
+      "to_utc": "2026-08-07T20:55:00Z",
+      "rule": "FB <= time < FC",
+      "FC": 1786233600
+    },
+    "fold_C": {
+      "from_utc": "2026-08-09T22:00:00Z",
+      "to_utc": "2026-08-30T23:55:00Z",
+      "rule": "FC <= time < FE",
+      "FE": 1788134400
+    },
+    "start_origin": "2026-05-24T22:00:00Z is TradingView's 5m history limit for these symbols, not a chosen cutoff. Paging stalled there for both instruments, and it is the same instant the frozen 3m runs record as their fold-A coverage start.",
+    "end_origin": "FE = 1788134400 (2026-08-31T00:00:00Z). No bar at or after FE is included."
+  },
+  "verification": {
+    "fold_A_bars_match_frozen_runs": true,
+    "fold_B_bars_match_frozen_runs": true,
+    "expected_from_run_files": {
+      "MGC1!": {
+        "A": 10386,
+        "B": 4668
+      },
+      "MNQ1!": {
+        "A": 10368,
+        "B": 4668
+      }
+    },
+    "run_file_reference": "trader_v2/v53_runs/{MGC,MNQ}_{L,S}_{1m,3m}_{A,B}.txt"
+  },
+  "artifacts": [
+    {
+      "path": "data/roll_calendar.json",
+      "kind": "roll_calendar",
+      "sha256": "8d025df3fa600d1d3d8abf40811d2ecc12947f90892fed9fc997fd99b8edfe29",
+      "bytes": 40215,
+      "rows": 122,
+      "instruments": [
+        "MGC",
+        "MNQ"
+      ],
+      "source": "TradingView RollDatesCalculator (P-6)"
+    },
+    {
+      "path": "data/phase_c/MGC1__5m.csv",
+      "kind": "parent_bars",
+      "instrument": "MGC1!",
+      "requested_symbol": "COMEX_MINI:MGC1!",
+      "resolved_symbol": "COMEX_MINI_DL:MGC1!",
+      "timeframe": "5m",
+      "fields": [
+        "timestamp",
+        "high",
+        "low",
+        "close"
+      ],
+      "sha256": "1c5c5ebaaa3fb740d7a388330ab5080a6a53445fd7d86205e424514131f0888f",
+      "bytes": 602265,
+      "rows": 19218,
+      "first_timestamp": 1779660000,
+      "first_timestamp_utc": "2026-05-24T22:00:00Z",
+      "last_timestamp": 1788134100,
+      "last_timestamp_utc": "2026-08-30T23:55:00Z",
+      "fold_bars": {
+        "A": 10386,
+        "B": 4668,
+        "C": 4164
+      },
+      "post_fe_rows": 0
+    },
+    {
+      "path": "data/phase_c/MNQ1__5m.csv",
+      "kind": "parent_bars",
+      "instrument": "MNQ1!",
+      "requested_symbol": "CME_MINI:MNQ1!",
+      "resolved_symbol": "CME_MINI_DL:MNQ1!",
+      "timeframe": "5m",
+      "fields": [
+        "timestamp",
+        "high",
+        "low",
+        "close"
+      ],
+      "sha256": "63e9d0ac33f29d2d27172ae0129d4ba57f10cd143b51baa8a87b720ac77ee665",
+      "bytes": 667838,
+      "rows": 19200,
+      "first_timestamp": 1779660000,
+      "first_timestamp_utc": "2026-05-24T22:00:00Z",
+      "last_timestamp": 1788134100,
+      "last_timestamp_utc": "2026-08-30T23:55:00Z",
+      "fold_bars": {
+        "A": 10368,
+        "B": 4668,
+        "C": 4164
+      },
+      "post_fe_rows": 0
+    }
+  ]
+}

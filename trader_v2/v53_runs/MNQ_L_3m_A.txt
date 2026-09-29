@@ -1,0 +1,5 @@
+FUNNEL L A 3m: foldbars 10368 | w/LTF 10368 | sweeps 468 | CHOCH 191 | retests 136 | BOS+disp 11 | FVG 5 | fills 1
+ break-no-disp 244 | noFVG 6 | Rband 1 | FVGexpiry 3 | expire 277/55/125 | dropped 0 | ASSERTS all 0
+PERF MNQ1! L 3m A: cov 2026-05-24 22:00 -> 2026-07-15 23:55 | fills 1 | W0 Lstop1 TO0 | wr 0% | Rpre -1 | Rpost -1.008 | avg -1.0077 | med -1.0077 | exp -1.0077R | maxConsecL 1 | DD_R 1.008 | DD_$ 391.04 | tot$ -391.04
+LEDGER:
+MNQ1!|L|3m|A|sw 2026-06-10 13:05|AS|swX 28822|ch 2026-06-10 13:36|chL 28890|rt 2026-06-10 13:39|bos 2026-06-10 13:42|bosL 28991.5|fvg 29002.25-29019.25|en 2026-06-10 13:50|enPx 29002.25|stop 28808.2282|LOSS|-1.008R|$-391.04|stop|16bars

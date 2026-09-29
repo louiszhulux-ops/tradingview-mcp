@@ -1,0 +1,191 @@
+//@version=6
+// V37 CONDITIONING LAB -- realistic fills + walk-forward folds.
+// Entry is at the NEXT BAR'S OPEN (not the trigger close), a $4.40 execution
+// drag is converted to R at the live stop size, and every cell is split into
+// three equal time folds so stability is visible.
+// Protocol and decision rule: strategies/V37_PROTOCOL.md
+// RESULT: only "vol > 1.5 x SMA(ATR,100)" survives folds + cross-market gate.
+indicator("V37 CONDITIONING LAB", overlay=true)
+
+condMode = input.int(3, "cond 1sess 2ext 3vol 4run", minval=1, maxval=4, group="Conditioner")
+volCut   = input.float(1.50, "vol cell-5 threshold", group="Conditioner")
+brkLen   = input.int(20, "break lookback", group="Trigger")
+swLen    = input.int(10, "swing pivot len", group="Trigger")
+lookK    = input.int(6,  "sweep reclaim window", group="Trigger")
+emaFL    = input.int(20, "ema fast", group="Trigger")
+emaSL    = input.int(50, "ema slow", group="Trigger")
+vwapM    = input.int(5,  "bars beyond vwap", group="Trigger")
+
+stopA    = input.float(1.5, "stop (xATR)", group="Barriers")
+tgtR     = input.float(2.0, "target (xR)", group="Barriers")
+maxBars  = input.int(288,   "timeout bars", group="Barriers")
+costUSD  = input.float(4.40, "execution drag ($/trade)", group="Barriers")
+
+atr = ta.atr(14)
+eF  = ta.ema(close, emaFL)
+eS  = ta.ema(close, emaSL)
+vw  = ta.vwap(hlc3)
+
+hiLvl = ta.highest(high, brkLen)[1]
+brkUp = not na(hiLvl) and close > hiLvl and close[1] <= hiLvl
+
+pl = ta.pivotlow(low, swLen, swLen)
+var float lastPL = na
+if not na(pl)
+    lastPL := pl
+var int   swpLoBar = -99999
+var float swpLoLvl = na
+if not na(lastPL) and low < lastPL
+    swpLoBar := bar_index
+    swpLoLvl := lastPL
+swpUp = not na(swpLoLvl) and (bar_index - swpLoBar) <= lookK and close > swpLoLvl and close[1] <= swpLoLvl
+
+xUpF  = ta.crossover(close, eF)
+pulUp = eF > eS and xUpF
+xUpV  = ta.crossover(close, vw)
+bsAbv = ta.barssince(close > vw)
+vwUp  = xUpV and nz(bsAbv[1], 999) >= vwapM
+
+fire = brkUp or swpUp or pulUp or vwUp
+
+hr    = hour(time, "UTC")
+ext   = na(atr) or atr <= 0 ? na : (close - eF) / atr
+volr  = atr / ta.sma(atr, 100)
+runln = ta.barssince(close <= eF)
+
+sessCell = hr < 4 ? 0 : hr < 8 ? 1 : hr < 12 ? 2 : hr < 16 ? 3 : hr < 20 ? 4 : 5
+extCell  = na(ext) ? 0 : ext < 0.5 ? 0 : ext < 1.0 ? 1 : ext < 1.5 ? 2 : ext < 2.0 ? 3 : ext < 3.0 ? 4 : 5
+volCell  = na(volr) ? 0 : volr < 0.70 ? 0 : volr < 0.85 ? 1 : volr < 1.00 ? 2 : volr < 1.20 ? 3 : volr < volCut ? 4 : 5
+runCell  = na(runln) ? 0 : runln < 3 ? 0 : runln < 5 ? 1 : runln < 7 ? 2 : runln < 10 ? 3 : runln < 15 ? 4 : 5
+cellNow  = condMode == 1 ? sessCell : condMode == 2 ? extCell : condMode == 3 ? volCell : runCell
+
+foldNow = math.min(2, int(math.floor(3.0 * bar_index / (last_bar_index + 1))))
+
+SL = 4
+var int[]   st   = array.new_int(8, 0)
+var float[] ent  = array.new_float(8, na)
+var float[] dst  = array.new_float(8, na)
+var int[]   bIn  = array.new_int(8, 0)
+var int[]   cel  = array.new_int(8, 0)
+var int[]   fld  = array.new_int(8, 0)
+var float[] fadeR = array.new_float(18, 0.0)
+var int[]   fadeN = array.new_int(18, 0)
+var int[]   fadeW = array.new_int(18, 0)
+var float[] follR = array.new_float(6, 0.0)
+var int[]   follN = array.new_int(6, 0)
+var int  skipped = 0
+
+// 1. resolve trades that were already active before this bar
+for i = 0 to 7
+    if array.get(st, i) == 2
+        isFade = i < SL
+        e  = array.get(ent, i)
+        dd = array.get(dst, i)
+        c  = array.get(cel, i)
+        f  = array.get(fld, i)
+        sp = isFade ? e + dd : e - dd
+        tp = isFade ? e - tgtR * dd : e + tgtR * dd
+        b  = array.get(bIn, i) + 1
+        array.set(bIn, i, b)
+        float r = na
+        if isFade
+            if high >= sp
+                r := -1.0
+            else if low <= tp
+                r := tgtR
+        else
+            if low <= sp
+                r := -1.0
+            else if high >= tp
+                r := tgtR
+        if na(r) and b >= maxBars
+            r := isFade ? (e - close) / dd : (close - e) / dd
+        if not na(r)
+            cR = costUSD / (dd * (na(syminfo.pointvalue) or syminfo.pointvalue <= 0 ? 1.0 : syminfo.pointvalue))
+            rn = r - cR
+            array.set(st, i, 0)
+            if isFade
+                k = c * 3 + f
+                array.set(fadeN, k, array.get(fadeN, k) + 1)
+                array.set(fadeR, k, array.get(fadeR, k) + rn)
+                if rn > 0
+                    array.set(fadeW, k, array.get(fadeW, k) + 1)
+            else
+                array.set(follN, c, array.get(follN, c) + 1)
+                array.set(follR, c, array.get(follR, c) + rn)
+
+// 2. fill pendings at THIS bar's open
+for i = 0 to 7
+    if array.get(st, i) == 1
+        array.set(st, i, 2)
+        array.set(ent, i, open)
+        array.set(bIn, i, 0)
+
+// 3. arm new pendings on the trigger bar
+d0 = stopA * atr
+if fire and d0 > 0 and not na(atr) and not na(volr)
+    int sf = -1
+    int sl2 = -1
+    for s = 0 to SL - 1
+        if sf < 0 and array.get(st, s) == 0
+            sf := s
+        if sl2 < 0 and array.get(st, SL + s) == 0
+            sl2 := SL + s
+    if sf < 0 or sl2 < 0
+        skipped := skipped + 1
+    else
+        array.set(st, sf, 1)
+        array.set(dst, sf, d0)
+        array.set(cel, sf, cellNow)
+        array.set(fld, sf, foldNow)
+        array.set(st, sl2, 1)
+        array.set(dst, sl2, d0)
+        array.set(cel, sl2, cellNow)
+        array.set(fld, sl2, foldNow)
+
+lbl(c) => condMode == 1 ? str.tostring(c * 4, "#") + "-" + str.tostring(c * 4 + 4, "#") + "utc" : condMode == 2 ? (c == 0 ? "ext<.5" : c == 1 ? "ext.5-1" : c == 2 ? "ext1-1.5" : c == 3 ? "ext1.5-2" : c == 4 ? "ext2-3" : "ext>3") : condMode == 3 ? (c == 0 ? "vol<.7" : c == 1 ? "vol.7-.85" : c == 2 ? "vol.85-1" : c == 3 ? "vol1-1.2" : c == 4 ? "vol1.2-cut" : "vol>" + str.tostring(volCut, "#.##")) : (c == 0 ? "run<3" : c == 1 ? "run3-5" : c == 2 ? "run5-7" : c == 3 ? "run7-10" : c == 4 ? "run10-15" : "run15+")
+
+cname = condMode == 1 ? "SESSION" : condMode == 2 ? "EXTENSION" : condMode == 3 ? "VOLREGIME" : "RUNLEN"
+var table tb = table.new(position.top_right, 8, 9, border_width=1)
+if barstate.islast
+    table.cell(tb, 0, 0, cname, text_color=color.white, bgcolor=color.navy, text_size=size.tiny)
+    table.cell(tb, 1, 0, "n",     text_color=color.white, bgcolor=color.navy, text_size=size.tiny)
+    table.cell(tb, 2, 0, "fold1", text_color=color.white, bgcolor=color.navy, text_size=size.tiny)
+    table.cell(tb, 3, 0, "fold2", text_color=color.white, bgcolor=color.navy, text_size=size.tiny)
+    table.cell(tb, 4, 0, "fold3", text_color=color.white, bgcolor=color.navy, text_size=size.tiny)
+    table.cell(tb, 5, 0, "ALL",   text_color=color.white, bgcolor=color.navy, text_size=size.tiny)
+    table.cell(tb, 6, 0, "win%",  text_color=color.white, bgcolor=color.navy, text_size=size.tiny)
+    table.cell(tb, 7, 0, "foll",  text_color=color.white, bgcolor=color.navy, text_size=size.tiny)
+    for c = 0 to 5
+        int    nt = 0
+        float  st2 = 0.0
+        int    wt = 0
+        table.cell(tb, 0, c + 1, lbl(c), text_size=size.tiny)
+        for f = 0 to 2
+            k  = c * 3 + f
+            nf = array.get(fadeN, k)
+            nt := nt + nf
+            st2 := st2 + array.get(fadeR, k)
+            wt := wt + array.get(fadeW, k)
+            rf = nf > 0 ? array.get(fadeR, k) / nf : na
+            table.cell(tb, 2 + f, c + 1, str.tostring(rf, "#.###"), text_size=size.tiny, bgcolor=na(rf) ? color.gray : rf > 0 ? color.new(color.green, 75) : color.new(color.red, 75))
+        ra = nt > 0 ? st2 / nt : na
+        nl = array.get(follN, c)
+        rl = nl > 0 ? array.get(follR, c) / nl : na
+        table.cell(tb, 1, c + 1, str.tostring(nt), text_size=size.tiny)
+        table.cell(tb, 5, c + 1, str.tostring(ra, "#.####"), text_size=size.tiny, bgcolor=na(ra) ? color.gray : ra > 0 ? color.new(color.green, 55) : color.new(color.red, 55))
+        table.cell(tb, 6, c + 1, nt > 0 ? str.tostring(100.0 * wt / nt, "#.#") : "-", text_size=size.tiny)
+        table.cell(tb, 7, c + 1, str.tostring(rl, "#.###"), text_size=size.tiny)
+    int    tn = 0
+    float  ts = 0.0
+    for k = 0 to 17
+        tn := tn + array.get(fadeN, k)
+        ts := ts + array.get(fadeR, k)
+    table.cell(tb, 0, 7, "POOLED", text_size=size.tiny, bgcolor=color.new(color.yellow, 70))
+    table.cell(tb, 1, 7, str.tostring(tn), text_size=size.tiny)
+    table.cell(tb, 5, 7, tn > 0 ? str.tostring(ts / tn, "#.####") : "-", text_size=size.tiny)
+    table.cell(tb, 6, 7, "skip=" + str.tostring(skipped), text_size=size.tiny)
+    table.cell(tb, 7, 7, syminfo.ticker + " " + timeframe.period, text_size=size.tiny)
+    table.cell(tb, 0, 8, "stop$/ctr", text_size=size.tiny)
+    table.cell(tb, 1, 8, str.tostring(stopA * atr * (na(syminfo.pointvalue) or syminfo.pointvalue <= 0 ? 1.0 : syminfo.pointvalue), "#.00"), text_size=size.tiny)
+    table.cell(tb, 2, 8, "cut=" + str.tostring(volCut, "#.##"), text_size=size.tiny)

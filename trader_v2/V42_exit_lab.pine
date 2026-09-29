@@ -1,0 +1,294 @@
+//@version=6
+// V42 EXIT LAB -- Phase 5. Ten exit rules on the SAME opportunity set.
+// Entry fixed (V41 retest: sweep -> second touch -> enter on the level, stop
+// beyond the swept extreme). Only the EXIT varies, so rules are comparable.
+// H1..H4 fixed 1R/2R/3R/5R; H5 destination; H6 trail arm 2R give 1R;
+// H7 partial 50% at 2R + remainder to destination; H8 REVERSAL exit (close
+// when the OPPOSING sweep setup fires -- derived from the human's Aug 31 pair,
+// long exit 1:38pm / short entry 1:41pm); H9 ride to timeout; H10 time exit.
+// Adverse excursion checked first within every bar.
+indicator("V42 EXIT LAB", overlay=true)
+
+dirMode  = input.int(-1,  "direction 1=long -1=short", minval=-1, maxval=1, group="Test")
+roomMin  = input.float(0.0, "min room to destination (R)", group="Test")
+bufATR   = input.float(0.20, "stop buffer beyond extreme (xATR)", group="Setup")
+minWick  = input.float(0.10, "min sweep beyond level (xATR)", group="Setup")
+retBars  = input.int(24,  "bars allowed for the retest", group="Setup")
+minRatr  = input.float(0.05, "min R (xATR)", group="Setup")
+maxRatr  = input.float(3.00, "max R (xATR)", group="Setup")
+maxBars  = input.int(144, "timeout bars", group="Setup")
+timeBars = input.int(48,  "H10 time exit bars", group="Setup")
+trailArm = input.float(2.0, "H6 arm at (R)", group="Setup")
+trailGiv = input.float(1.0, "H6 give back (R)", group="Setup")
+costUSD  = input.float(3.00, "execution drag ($/trade)", group="Setup")
+swLen    = input.int(10,  "swing pivot len", group="Levels")
+
+atr = ta.atr(14)
+isLong = dirMode == 1
+
+newD = ta.change(time("D")) != 0
+var float pdh = na
+var float pdl = na
+var float dh  = na
+var float dl  = na
+if newD
+    pdh := dh
+    pdl := dl
+    dh  := high
+    dl  := low
+else
+    dh := math.max(nz(dh, high), high)
+    dl := math.min(nz(dl, low), low)
+
+hUTC = hour(time, "UTC")
+inAsia = hUTC < 7
+var float asiaH = na
+var float asiaL = na
+var bool  asiaOn = false
+if inAsia and not asiaOn
+    asiaOn := true
+    asiaH := high
+    asiaL := low
+else if inAsia
+    asiaH := math.max(nz(asiaH, high), high)
+    asiaL := math.min(nz(asiaL, low), low)
+else
+    asiaOn := false
+
+ph = ta.pivothigh(high, swLen, swLen)
+pl = ta.pivotlow(low,  swLen, swLen)
+var float swH = na
+var float swL = na
+if not na(ph)
+    swH := ph
+if not na(pl)
+    swL := pl
+
+gotLo = false
+gotHi = false
+float lvlLo = na
+float lvlHi = na
+if not na(atr) and atr > 0
+    if not na(pdl) and low < pdl - minWick * atr and close > pdl
+        gotLo := true
+        lvlLo := pdl
+    if not na(asiaL) and low < asiaL - minWick * atr and close > asiaL
+        gotLo := true
+        lvlLo := na(lvlLo) ? asiaL : math.max(lvlLo, asiaL)
+    if not na(swL) and low < swL - minWick * atr and close > swL
+        gotLo := true
+        lvlLo := na(lvlLo) ? swL : math.max(lvlLo, swL)
+    if not na(pdh) and high > pdh + minWick * atr and close < pdh
+        gotHi := true
+        lvlHi := pdh
+    if not na(asiaH) and high > asiaH + minWick * atr and close < asiaH
+        gotHi := true
+        lvlHi := na(lvlHi) ? asiaH : math.min(lvlHi, asiaH)
+    if not na(swH) and high > swH + minWick * atr and close < swH
+        gotHi := true
+        lvlHi := na(lvlHi) ? swH : math.min(lvlHi, swH)
+
+event   = gotLo or gotHi
+sideLo  = gotLo and not gotHi
+evLevel = sideLo ? lvlLo : lvlHi
+evExtreme = sideLo ? low : high
+opposing = isLong ? gotHi : gotLo
+
+nearestAbove(px) =>
+    float b = na
+    if not na(pdh) and pdh > px
+        b := pdh
+    if not na(asiaH) and asiaH > px
+        b := na(b) ? asiaH : math.min(b, asiaH)
+    if not na(swH) and swH > px
+        b := na(b) ? swH : math.min(b, swH)
+    b
+nearestBelow(px) =>
+    float b = na
+    if not na(pdl) and pdl < px
+        b := pdl
+    if not na(asiaL) and asiaL < px
+        b := na(b) ? asiaL : math.max(b, asiaL)
+    if not na(swL) and swL < px
+        b := na(b) ? swL : math.max(b, swL)
+    b
+
+SL = 4
+var int[]   st   = array.new_int(SL, 0)
+var float[] lvl  = array.new_float(SL, na)
+var float[] stp  = array.new_float(SL, na)
+var float[] ent  = array.new_float(SL, na)
+var float[] rr   = array.new_float(SL, na)
+var float[] aRef = array.new_float(SL, na)
+var float[] dstR = array.new_float(SL, na)
+var int[]   wt   = array.new_int(SL, 0)
+var int[]   bIn  = array.new_int(SL, 0)
+var float[] mfe  = array.new_float(SL, 0.0)
+var int[]   flg  = array.new_int(SL, 0)
+var bool[]  dHit = array.new_bool(SL, false)
+var float[] trX  = array.new_float(SL, na)
+var float[] rvX  = array.new_float(SL, na)
+var float[] tmX  = array.new_float(SL, na)
+
+NR = 12
+var int[]   rN   = array.new_int(NR, 0)
+var int[]   rW   = array.new_int(NR, 0)
+var float[] rSum = array.new_float(NR, 0.0)
+var float[] rWin = array.new_float(NR, 0.0)
+var float[] rLos = array.new_float(NR, 0.0)
+var float[] rMax = array.new_float(NR, 0.0)
+var int  armed  = 0
+var int  fills  = 0
+var int  skipped= 0
+ptv = na(syminfo.pointvalue) or syminfo.pointvalue <= 0 ? 1.0 : syminfo.pointvalue
+
+put(k, v) =>
+    array.set(rN, k, array.get(rN, k) + 1)
+    array.set(rSum, k, array.get(rSum, k) + v)
+    if v > 0
+        array.set(rW, k, array.get(rW, k) + 1)
+        array.set(rWin, k, array.get(rWin, k) + v)
+    else
+        array.set(rLos, k, array.get(rLos, k) + v)
+    if v > array.get(rMax, k)
+        array.set(rMax, k, v)
+
+record(i, died, rideR) =>
+    r  = array.get(rr, i)
+    f  = array.get(flg, i)
+    dR = array.get(dstR, i)
+    dh2 = array.get(dHit, i)
+    cR = costUSD / (r * ptv)
+    base = died ? -1.0 : rideR
+    put(0, (f >= 1 ? 1.0 : -1.0) - cR)
+    put(1, (f >= 2 ? 2.0 : -1.0) - cR)
+    put(2, (f >= 3 ? 3.0 : -1.0) - cR)
+    put(3, (f >= 4 ? 5.0 : -1.0) - cR)
+    put(4, (dh2 ? dR : -1.0) - cR)
+    put(5, (na(array.get(trX, i)) ? base : array.get(trX, i)) - cR)
+    runner = dh2 ? dR : base
+    put(6, (f >= 2 ? 0.5 * 2.0 + 0.5 * runner : -1.0) - cR)
+    put(7, (na(array.get(rvX, i)) ? base : array.get(rvX, i)) - cR)
+    put(8, base - cR)
+    put(9, (na(array.get(tmX, i)) ? base : array.get(tmX, i)) - cR)
+    revv = na(array.get(rvX, i)) ? base : array.get(rvX, i)
+    put(10, (f >= 2 ? 0.5 * 2.0 + 0.5 * revv : -1.0) - cR)
+    put(11, (f >= 2 ? 0.5 * 2.0 + 0.5 * base : -1.0) - cR)
+    array.set(st, i, 0)
+
+for i = 0 to SL - 1
+    if array.get(st, i) == 2
+        e = array.get(ent, i)
+        r = array.get(rr, i)
+        b = array.get(bIn, i) + 1
+        array.set(bIn, i, b)
+        adv = isLong ? (e - low) / r  : (high - e) / r
+        fav = isLong ? (high - e) / r : (e - low) / r
+        favLo = isLong ? (low - e) / r : (e - high) / r
+        if adv >= 1.0
+            record(i, true, -1.0)
+        else
+            m = array.get(mfe, i)
+            if fav > m
+                m := fav
+                array.set(mfe, i, m)
+            f = array.get(flg, i)
+            if fav >= 1.0 and f < 1
+                f := 1
+            if fav >= 2.0 and f < 2
+                f := 2
+            if fav >= 3.0 and f < 3
+                f := 3
+            if fav >= 5.0 and f < 4
+                f := 4
+            array.set(flg, i, f)
+            dR = array.get(dstR, i)
+            if not na(dR) and fav >= dR
+                array.set(dHit, i, true)
+            if na(array.get(trX, i)) and m >= trailArm and favLo <= m - trailGiv
+                array.set(trX, i, m - trailGiv)
+            if na(array.get(rvX, i)) and opposing
+                array.set(rvX, i, isLong ? (close - e) / r : (e - close) / r)
+            if na(array.get(tmX, i)) and b >= timeBars
+                array.set(tmX, i, isLong ? (close - e) / r : (e - close) / r)
+            if b >= maxBars
+                record(i, false, isLong ? (close - e) / r : (e - close) / r)
+
+for i = 0 to SL - 1
+    if array.get(st, i) == 1
+        L  = array.get(lvl, i)
+        sp = array.get(stp, i)
+        lo = sp < L
+        hit = lo ? low <= L : high >= L
+        if hit
+            r = math.abs(L - sp)
+            a = array.get(aRef, i)
+            ratio = r / a
+            tgt = isLong ? nearestAbove(L) : nearestBelow(L)
+            room = na(tgt) or r <= 0 ? na : math.abs(tgt - L) / r
+            if ratio >= minRatr and ratio <= maxRatr and not na(room) and room >= roomMin
+                array.set(st, i, 2)
+                array.set(ent, i, L)
+                array.set(rr, i, r)
+                array.set(dstR, i, room)
+                array.set(bIn, i, 0)
+                array.set(mfe, i, 0.0)
+                array.set(flg, i, 0)
+                array.set(dHit, i, false)
+                array.set(trX, i, na)
+                array.set(rvX, i, na)
+                array.set(tmX, i, na)
+                fills := fills + 1
+            else
+                array.set(st, i, 0)
+        else
+            w = array.get(wt, i) + 1
+            array.set(wt, i, w)
+            if w >= retBars
+                array.set(st, i, 0)
+
+wantSide = isLong ? sideLo : not sideLo
+if event and wantSide and not na(atr) and atr > 0 and not na(evLevel)
+    int f = -1
+    for s = 0 to SL - 1
+        if f < 0 and array.get(st, s) == 0
+            f := s
+    if f < 0
+        skipped := skipped + 1
+    else
+        sp = sideLo ? evExtreme - bufATR * atr : evExtreme + bufATR * atr
+        armed := armed + 1
+        array.set(st, f, 1)
+        array.set(lvl, f, evLevel)
+        array.set(stp, f, sp)
+        array.set(aRef, f, atr)
+        array.set(wt, f, 0)
+
+rlbl(k) => k == 0 ? "H1 fixed 1R" : k == 1 ? "H2 fixed 2R" : k == 2 ? "H3 fixed 3R" : k == 3 ? "H4 fixed 5R" : k == 4 ? "H5 destination" : k == 5 ? "H6 trail 2R/1R" : k == 6 ? "H7 partial+dest" : k == 7 ? "H8 REVERSAL" : k == 8 ? "H9 ride" : k == 9 ? "H10 time 48b" : k == 10 ? "H11 half2R+rev" : "H12 half2R+ride"
+
+var table tb = table.new(position.top_right, 7, 15, border_width=1)
+if barstate.islast
+    table.cell(tb, 0, 0, isLong ? "V42 EXIT LAB L" : "V42 EXIT LAB S", text_color=color.white, bgcolor=color.navy, text_size=size.tiny)
+    table.cell(tb, 1, 0, "n",      text_color=color.white, bgcolor=color.navy, text_size=size.tiny)
+    table.cell(tb, 2, 0, "E[R]",   text_color=color.white, bgcolor=color.navy, text_size=size.tiny)
+    table.cell(tb, 3, 0, "win%",   text_color=color.white, bgcolor=color.navy, text_size=size.tiny)
+    table.cell(tb, 4, 0, "avgWin", text_color=color.white, bgcolor=color.navy, text_size=size.tiny)
+    table.cell(tb, 5, 0, "avgLos", text_color=color.white, bgcolor=color.navy, text_size=size.tiny)
+    table.cell(tb, 6, 0, "bestR",  text_color=color.white, bgcolor=color.navy, text_size=size.tiny)
+    for k = 0 to NR - 1
+        n = array.get(rN, k)
+        table.cell(tb, 0, k + 1, rlbl(k), text_size=size.tiny)
+        if n > 0
+            e = array.get(rSum, k) / n
+            w = array.get(rW, k)
+            table.cell(tb, 1, k + 1, str.tostring(n), text_size=size.tiny)
+            table.cell(tb, 2, k + 1, str.tostring(e, "#.####"), text_size=size.tiny, bgcolor=e > 0 ? color.new(color.green, 50) : color.new(color.red, 50))
+            table.cell(tb, 3, k + 1, str.tostring(100.0 * w / n, "#.#"), text_size=size.tiny)
+            table.cell(tb, 4, k + 1, w > 0 ? str.tostring(array.get(rWin, k) / w, "#.##") : "-", text_size=size.tiny)
+            table.cell(tb, 5, k + 1, n - w > 0 ? str.tostring(array.get(rLos, k) / (n - w), "#.##") : "-", text_size=size.tiny)
+            table.cell(tb, 6, k + 1, str.tostring(array.get(rMax, k), "#.#"), text_size=size.tiny)
+    table.cell(tb, 0, 13, "armed=" + str.tostring(armed), text_size=size.tiny)
+    table.cell(tb, 1, 13, "fills=" + str.tostring(fills), text_size=size.tiny)
+    table.cell(tb, 2, 13, "skip=" + str.tostring(skipped), text_size=size.tiny)
+    table.cell(tb, 3, 13, syminfo.ticker + " " + timeframe.period, text_size=size.tiny)
+    table.cell(tb, 4, 13, "roomMin=" + str.tostring(roomMin, "#.#"), text_size=size.tiny)

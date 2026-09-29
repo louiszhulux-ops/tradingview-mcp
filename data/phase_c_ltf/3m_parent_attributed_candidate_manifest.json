@@ -1,0 +1,178 @@
+{
+  "schema_version": "1.0.0",
+  "artifact": "phase_c_ltf_3m_parent_attributed_candidate_extraction",
+  "status": "CANDIDATE -- NOT FROZEN, NOT AUTHORITATIVE, NOT GROUND TRUTH",
+  "status_detail": "P-12 candidate 3m extraction preserving TradingView's OBSERVED parent attribution. Supersedes nothing: data/phase_c_ltf/{MGC1,MNQ1}__3m.csv and their manifest are unmodified. HEAD-TRUNCATED exactly as P-11: TradingView's 5m chart-series history limit stands at 2026-05-31T22:00:00Z, seven days later than the Phase-C parent start of 2026-05-24T22:00:00Z. The 100,000-value request.security_lower_tf cap was NOT reached. OHLC value parity against the historical Phase 13F/14 runs remains unproven because no historical LTF value artifact exists. This dataset is NOT registered in data/phase_c_ltf_manifest.json and is not Gate 1 evidence.",
+  "extraction_date_utc": "2026-09-14T11:21:36Z",
+  "frozen_fe_boundary": {
+    "value_ms": 1788134400000,
+    "value_s": 1788134400,
+    "utc": "2026-08-31T00:00:00Z",
+    "convention": "exclusive (open_ts < FE, close_ts <= FE)",
+    "sources": [
+      "trader_v2/V53_ltf_sequence.pine:33",
+      "bot/guards.py FE_MS"
+    ]
+  },
+  "requested_window": {
+    "from_utc": "2026-05-24T22:00:00Z",
+    "from_s": 1779660000,
+    "to_utc": "2026-08-31T00:00:00Z (FE, exclusive)",
+    "source": [
+      "data/phase_c/MGC1__5m.csv",
+      "data/phase_c/MNQ1__5m.csv"
+    ]
+  },
+  "extraction": {
+    "mechanism": "request.security_lower_tf(syminfo.tickerid, \"3\", <field>)",
+    "probe": "docs/p12_3m_parent_attributed_probe.pine",
+    "probe_sha256": "28d20100c7becfddf3fc58378b1b0edf78aff2e8fb818e4b540ddeef08b8be6c",
+    "requested_fields": [
+      "open",
+      "high",
+      "low",
+      "close",
+      "time"
+    ],
+    "persisted_fields": [
+      "timestamp",
+      "open",
+      "high",
+      "low",
+      "close",
+      "parent_ts"
+    ],
+    "study": "P12 3M LTF PARENT-ATTRIBUTED -- extraction-only, zero strategy semantics; removed after extraction",
+    "chart": "P2NtY6fg (disposable research layout, \"B1 ROLL INVESTIGATION\")",
+    "active_target_verified": "https://www.tradingview.com/chart/P2NtY6fg/ before any mutation",
+    "protected_chart_2d43Iesr": "untouched -- never active, never navigated, never mutated; tab_switch not used",
+    "pine_save_used": false,
+    "tv_launch_used": false,
+    "readback": "raw CDP: dataSources() -> study.data() -> firstIndex/lastIndex/valueAt",
+    "symbols_served": {
+      "MGC1!": "COMEX_MINI_DL:MGC1!",
+      "MNQ1!": "CME_MINI_DL:MNQ1!"
+    },
+    "delayed_feed_dl": true,
+    "cap_behaviour": "natural; LTF arrays never paginated, no stitching, no unioning, no synthetic bars",
+    "parent_series_history_paging": "mainSeries().requestMoreData(1000) until requestMoreDataAvailable() returned false; permitted to reach the naturally available boundary only",
+    "post_fe_protection": "parent-level gate (time < FE) in Pine; 0 post-FE rows observed"
+  },
+  "parent_attribution_methodology": {
+    "definition": "parent_ts is the timestamp of the 5m chart bar on which request.security_lower_tf delivered that LTF array element. It is TradingView's own attribution, observed, not computed.",
+    "observed_two_ways": "published by the probe as plot `pt` (Pine `time`), and independently available as the study series' own bar time; the two agreed on every parent (0 mismatches).",
+    "never_reconstructed": "parent_ts is NEVER derived from timestamp geometry. The floor rule `timestamp - (timestamp % 300)` disagrees with the recorded attribution on 11,912 of 29,780 rows (40.0%) for BOTH instruments.",
+    "straddling": "3 does not divide 5, so a 3m bar may straddle a 5m boundary. Every bar overlaps its recorded parent, and no bar was returned under two parents (0 duplicates).",
+    "boundary_case_verified": "parent 1788134100 (2026-08-30 23:55:00Z) is recorded with 3m bars 23:54 and 23:57 for both instruments, independently reproducing the P-11 observation. The floor rule would have assigned that parent only 23:57."
+  },
+  "comparison_with_p11": {
+    "note": "audit only; neither dataset is authoritative",
+    "previous": [
+      "data/phase_c_ltf/MGC1__3m.csv",
+      "data/phase_c_ltf/MNQ1__3m.csv"
+    ],
+    "row_counts_identical": true,
+    "timestamps_identical": true,
+    "ohlc_value_differences": 0,
+    "history_boundary_identical": true,
+    "only_difference": "the new capture adds the parent_ts column"
+  },
+  "artifacts": [
+    {
+      "path": "data/phase_c_ltf/MGC1__3m_parent_attributed.csv",
+      "instrument": "MGC1!",
+      "lower_timeframe": "3m",
+      "parent_timeframe": "5m",
+      "fields": [
+        "timestamp",
+        "open",
+        "high",
+        "low",
+        "close",
+        "parent_ts"
+      ],
+      "sha256": "1350fc4050604e7538a622395ab631daf17c538c152a6f551a3e948ab2450c01",
+      "bytes": 1463356,
+      "rows": 29780,
+      "unique_timestamps": 29780,
+      "duplicate_count": 0,
+      "first_timestamp": 1780264800,
+      "first_timestamp_utc": "2026-05-31T22:00:00Z",
+      "last_timestamp": 1788134220,
+      "last_timestamp_utc": "2026-08-30T23:57:00Z",
+      "first_parent_ts": 1780264800,
+      "first_parent_ts_utc": "2026-05-31T22:00:00Z",
+      "last_parent_ts": 1788134100,
+      "last_parent_ts_utc": "2026-08-30T23:55:00Z",
+      "post_fe_rows": 0,
+      "out_of_order_rows": 0,
+      "malformed_rows": 0,
+      "ohlc_violations": 0,
+      "phase_c_parents_total": 19218,
+      "phase_c_parents_represented": 17868,
+      "phase_c_parents_empty": 1350,
+      "first_empty_parent": 1779660000,
+      "first_empty_parent_utc": "2026-05-24T22:00:00Z",
+      "last_empty_parent": 1780088100,
+      "last_empty_parent_utc": "2026-05-29T20:55:00Z",
+      "parents_with_one_sub_bar": 5956,
+      "parents_with_two_sub_bars": 11912,
+      "ltf_per_parent_ratio": 1.666667,
+      "rows_where_recorded_parent_differs_from_timestamp_floor": 11912,
+      "rows_where_recorded_parent_differs_pct": 40.0,
+      "every_bar_overlaps_its_recorded_parent": true,
+      "ltf_value_cap_reached": false,
+      "parent_series_history_paging_required": true,
+      "head_truncated": true,
+      "reaches_complete_pre_fe_window": false
+    },
+    {
+      "path": "data/phase_c_ltf/MNQ1__3m_parent_attributed.csv",
+      "instrument": "MNQ1!",
+      "lower_timeframe": "3m",
+      "parent_timeframe": "5m",
+      "fields": [
+        "timestamp",
+        "open",
+        "high",
+        "low",
+        "close",
+        "parent_ts"
+      ],
+      "sha256": "8b8b4c7f7f1c5c9469fc47b3d56f8f4eba23b2a28f2d2b6adcf54722fcf80f8d",
+      "bytes": 1601068,
+      "rows": 29780,
+      "unique_timestamps": 29780,
+      "duplicate_count": 0,
+      "first_timestamp": 1780264800,
+      "first_timestamp_utc": "2026-05-31T22:00:00Z",
+      "last_timestamp": 1788134220,
+      "last_timestamp_utc": "2026-08-30T23:57:00Z",
+      "first_parent_ts": 1780264800,
+      "first_parent_ts_utc": "2026-05-31T22:00:00Z",
+      "last_parent_ts": 1788134100,
+      "last_parent_ts_utc": "2026-08-30T23:55:00Z",
+      "post_fe_rows": 0,
+      "out_of_order_rows": 0,
+      "malformed_rows": 0,
+      "ohlc_violations": 0,
+      "phase_c_parents_total": 19200,
+      "phase_c_parents_represented": 17868,
+      "phase_c_parents_empty": 1332,
+      "first_empty_parent": 1779660000,
+      "first_empty_parent_utc": "2026-05-24T22:00:00Z",
+      "last_empty_parent": 1780088100,
+      "last_empty_parent_utc": "2026-05-29T20:55:00Z",
+      "parents_with_one_sub_bar": 5956,
+      "parents_with_two_sub_bars": 11912,
+      "ltf_per_parent_ratio": 1.666667,
+      "rows_where_recorded_parent_differs_from_timestamp_floor": 11912,
+      "rows_where_recorded_parent_differs_pct": 40.0,
+      "every_bar_overlaps_its_recorded_parent": true,
+      "ltf_value_cap_reached": false,
+      "parent_series_history_paging_required": true,
+      "head_truncated": true,
+      "reaches_complete_pre_fe_window": false
+    }
+  ]
+}

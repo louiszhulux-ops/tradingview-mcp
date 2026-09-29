@@ -1,0 +1,357 @@
+====================================================================================================
+SECTION 9 -- PHASE 13F CONTROL REPRODUCTION
+====================================================================================================
+H1 (1m)    fills  28 (exp  28)  wins 3 (exp 3)  losses 25 (exp 25)  R  -11.752 (exp  -11.752)  $ -2249.68   MATCH
+H2 (3m)    fills  12 (exp  12)  wins 3 (exp 3)  losses  9 (exp  9)  R   +5.688 (exp   +5.687)  $  +376.61   MATCH
+TOTAL      fills  40 (exp  40)  wins 6 (exp 6)  losses 34 (exp 34)  R   -6.064 (exp   -6.065)  $ -1873.07   MATCH
+
+CONTROL REPRODUCTION: PASS -- all three totals match Phase 13F exactly
+
+====================================================================================================
+SECTIONS 3-5 -- CLUSTERING IDENTITIES  (both reported; neither selected on results)
+====================================================================================================
+PRIMARY  (inst,dir,LTF,CHOCH ts+lvl,BOS ts+lvl,entry ts,entry px)
+    clusters  31 | multi-fill clusters  9 | fills in multi-fill clusters 18 (45.0%) | largest cluster 2
+ALTERNATIVE (inst,dir,LTF,BOS ts+lvl,entry ts,entry px)
+    clusters  27 | multi-fill clusters 11 | fills in multi-fill clusters 24 (60.0%) | largest cluster 3
+PHASE 13F AS PUBLISHED (inst,dir,LTF,fold,entry ts,entry px)
+    clusters  27 | multi-fill clusters 11 | fills in multi-fill clusters 24 (60.0%) | largest cluster 3
+
+Determinism: both identities are pure functions of recorded ledger fields; re-running yields identical partitions.
+
+====================================================================================================
+WHY PRIMARY (31) AND ALTERNATIVE (27) DIFFER
+====================================================================================================
+
+Alt cluster MNQ1! L 1m B BOS 2026-07-16 13:30 @ 29488.5 entry 2026-07-16 13:35 @ 29471.5  -> 2 fills, 2 distinct CHOCH:
+    sweep 2026-07-16 12:30 (PD, extreme 29386.75)  CHOCH 2026-07-16 12:52 @ 29401.25  stop 29379.1022  LOSS -1.016R
+    sweep 2026-07-16 12:50 (PD, extreme 29383.5)  CHOCH 2026-07-16 13:07 @ 29437.25  stop 29375.9721  LOSS -1.016R
+
+Alt cluster MNQ1! L 1m B BOS 2026-07-19 22:00 @ 28770.75 entry 2026-07-19 22:05 @ 28779.0  -> 2 fills, 2 distinct CHOCH:
+    sweep 2026-07-17 20:00 (AS, extreme 28712.5)  CHOCH 2026-07-17 20:20 @ 28748.75  stop 28701.9267  LOSS -1.019R
+    sweep 2026-07-17 20:10 (AS, extreme 28716.0)  CHOCH 2026-07-17 20:30 @ 28754.75  stop 28706.097  LOSS -1.021R
+
+Alt cluster MNQ1! L 1m B BOS 2026-07-29 18:00 @ 27728.0 entry 2026-07-29 18:30 @ 27727.25  -> 3 fills, 2 distinct CHOCH:
+    sweep 2026-07-29 17:30 (AS, extreme 27629.25)  CHOCH 2026-07-29 17:49 @ 27690.5  stop 27617.7288  LOSS -1.014R
+    sweep 2026-07-29 17:00 (PD+AS, extreme 27595.0)  CHOCH 2026-07-29 17:21 @ 27740.0  stop 27583.2054  LOSS -1.010R
+    sweep 2026-07-29 17:05 (AS, extreme 27634.25)  CHOCH 2026-07-29 17:21 @ 27740.0  stop 27622.8943  LOSS -1.014R
+
+Alt cluster MNQ1! S 1m A BOS 2026-06-17 13:30 @ 30488.75 entry 2026-06-17 13:40 @ 30497.25  -> 3 fills, 2 distinct CHOCH:
+    sweep 2026-06-17 12:30 (SW, extreme 30503.25)  CHOCH 2026-06-17 12:57 @ 30494.5  stop 30508.2128  LOSS -1.137R
+    sweep 2026-06-17 12:35 (SW, extreme 30520.75)  CHOCH 2026-06-17 12:57 @ 30494.5  stop 30525.869  LOSS -1.052R
+    sweep 2026-06-17 12:55 (SW, extreme 30503.25)  CHOCH 2026-06-17 13:06 @ 30475.0  stop 30508.2084  LOSS -1.137R
+
+4 alternative-identity clusters contain more than one distinct CHOCH; they split into 8 primary clusters, which is the entire 31 vs 27 difference.
+
+====================================================================================================
+FULL CLUSTER TABLE -- ALTERNATIVE IDENTITY (27 clusters; matches the Phase 13F count)
+====================================================================================================
+
+C01  MGC1! LONG 1m fold A  | fills 1
+     CHOCH 2026-06-26 12:50 @ 4059.3
+     BOS   2026-06-26 12:57 @ 4061.2   FVG 4063-4068.5   entry 2026-06-26 13:05 @ 4063.0
+       sweep 2026-06-26 12:20 [SW] extreme 4056.7     stop 4055.7894    WIN    +4.958R  $  +357.53  target    13 bars
+
+C02  MGC1! LONG 1m fold A  | fills 1
+     CHOCH 2026-07-10 20:21 @ 4120.7
+     BOS   2026-07-10 20:53 @ 4121.1   FVG 4122.4-4126.2   entry 2026-07-12 22:00 @ 4122.4
+       sweep 2026-07-10 20:00 [AS] extreme 4116.4     stop 4115.8039    LOSS   -1.045R  $   -68.96  stop       1 bars
+
+C03  MGC1! LONG 1m fold B  | fills 1
+     CHOCH 2026-08-04 11:10 @ 4111.6
+     BOS   2026-08-04 11:43 @ 4120.7   FVG 4117.8-4119.6   entry 2026-08-04 12:10 @ 4117.8
+       sweep 2026-08-04 10:45 [SW] extreme 4108.1     stop 4107.3858    LOSS   -1.029R  $  -107.14  timeout  144 bars
+
+C04  MGC1! LONG 3m fold A  | fills 1
+     CHOCH 2026-05-28 05:09 @ 4403.9
+     BOS   2026-05-28 05:30 @ 4406.4   FVG 4408.8-4412.6   entry 2026-05-28 06:05 @ 4408.8
+       sweep 2026-05-28 04:50 [PD] extreme 4397.3     stop 4396.0398    WIN    +4.976R  $  +635.01  target    96 bars
+
+C05  MGC1! LONG 3m fold A  | fills 1
+     CHOCH 2026-07-03 07:48 @ 4193.6
+     BOS   2026-07-03 08:00 @ 4194.7   FVG 4190.4-4194.7   entry 2026-07-03 08:45 @ 4190.4
+       sweep 2026-07-03 07:00 [SW] extreme 4184.0     stop 4183.1142    LOSS   -1.041R  $   -75.86  stop       9 bars
+
+C06  MGC1! LONG 3m fold A  | fills 1
+     CHOCH 2026-07-13 01:06 @ 4085.4
+     BOS   2026-07-13 01:30 @ 4090.9   FVG 4088.7-4090.8   entry 2026-07-13 01:50 @ 4088.7
+       sweep 2026-07-13 00:40 [PD] extreme 4076.3     stop 4075.0374    LOSS   -1.022R  $  -139.63  stop       7 bars
+
+C07  MGC1! LONG 3m fold A  | fills 2
+     CHOCH 2026-07-13 04:57 @ 4065.5
+     BOS   2026-07-13 05:06 @ 4065.7   FVG 4070.4-4076.1   entry 2026-07-13 05:20 @ 4070.4
+       sweep 2026-07-13 04:10 [SW] extreme 4060.0     stop 4059.0571    LOSS   -1.026R  $  -116.43  stop       8 bars
+       sweep 2026-07-13 04:15 [SW] extreme 4057.8     stop 4056.8116    LOSS   -1.022R  $  -138.88  stop       8 bars
+       -> sum  -2.048R | mean  -1.024R | best  -1.022R | worst  -1.026R | $  -255.31
+
+C08  MGC1! SHORT 1m fold A  | fills 2
+     CHOCH 2026-06-02 22:25 @ 4517.4
+     BOS   2026-06-02 22:45 @ 4516.8   FVG 4516-4517.7   entry 2026-06-02 22:50 @ 4517.7
+       sweep 2026-06-02 22:10 [SW] extreme 4521.6     stop 4522.1464    WIN    +4.933R  $  +219.32  target     6 bars
+       sweep 2026-06-02 22:00 [SW] extreme 4522.8     stop 4523.3057    LOSS   -1.054R  $   -59.06  stop      22 bars
+       -> sum  +3.879R | mean  +1.939R | best  +4.933R | worst  -1.054R | $  +160.26
+
+C09  MGC1! SHORT 1m fold B  | fills 2
+     CHOCH 2026-08-07 20:27 @ 4397.3
+     BOS   2026-08-09 22:02 @ 4399.0   FVG 4398.7-4404   entry 2026-08-09 22:10 @ 4404.0
+       sweep 2026-08-07 20:05 [SW] extreme 4403.9     stop 4404.7588    WIN    +4.605R  $   +34.94  target     1 bars
+       sweep 2026-08-07 20:00 [SW] extreme 4404.6     stop 4405.4802    LOSS   -1.203R  $   -17.80  stop      10 bars
+       -> sum  +3.402R | mean  +1.701R | best  +4.605R | worst  -1.203R | $   +17.14
+
+C10  MGC1! SHORT 3m fold A  | fills 1
+     CHOCH 2026-07-09 00:51 @ 4083.0
+     BOS   2026-07-09 01:00 @ 4081.3   FVG 4081.2-4081.8   entry 2026-07-09 01:10 @ 4081.8
+       sweep 2026-07-09 00:20 [SW] extreme 4094.7     stop 4095.6418    LOSS   -1.022R  $  -141.42  stop      58 bars
+
+C11  MNQ1! LONG 1m fold A  | fills 1
+     CHOCH 2026-06-25 12:04 @ 30140.5
+     BOS   2026-06-25 12:30 @ 30145.75   FVG 30140.25-30204.75   entry 2026-06-25 13:15 @ 30140.25
+       sweep 2026-06-25 11:30 [SW] extreme 30099.0    stop 30094.4432   LOSS   -1.033R  $   -94.61  stop       3 bars
+
+C12  MNQ1! LONG 1m fold A  | fills 1
+     CHOCH 2026-07-05 22:20 @ 29923.5
+     BOS   2026-07-05 23:12 @ 29961.0   FVG 29937.75-29982   entry 2026-07-06 00:00 @ 29937.75
+       sweep 2026-07-05 22:10 [SW] extreme 29875.5    stop 29870.877    LOSS   -1.022R  $  -136.75  stop       6 bars
+
+C13  MNQ1! LONG 1m fold B  | fills 2
+     CHOCH 2026-07-16 12:52 @ 29401.25; 2026-07-16 13:07 @ 29437.25
+     BOS   2026-07-16 13:30 @ 29488.5   FVG 29471.5-29478.5   entry 2026-07-16 13:35 @ 29471.5
+       sweep 2026-07-16 12:30 [PD] extreme 29386.75   stop 29379.1022   LOSS   -1.016R  $  -187.80  stop       1 bars
+       sweep 2026-07-16 12:50 [PD] extreme 29383.5    stop 29375.9721   LOSS   -1.016R  $  -194.06  stop       1 bars
+       -> sum  -2.032R | mean  -1.016R | best  -1.016R | worst  -1.016R | $  -381.86
+
+C14  MNQ1! LONG 1m fold B  | fills 2
+     CHOCH 2026-07-17 20:20 @ 28748.75; 2026-07-17 20:30 @ 28754.75
+     BOS   2026-07-19 22:00 @ 28770.75   FVG 28779-28791.5   entry 2026-07-19 22:05 @ 28779.0
+       sweep 2026-07-17 20:00 [AS] extreme 28712.5    stop 28701.9267   LOSS   -1.019R  $  -157.15  timeout  144 bars
+       sweep 2026-07-17 20:10 [AS] extreme 28716.0    stop 28706.097    LOSS   -1.021R  $  -148.81  timeout  144 bars
+       -> sum  -2.040R | mean  -1.020R | best  -1.019R | worst  -1.021R | $  -305.96
+
+C15  MNQ1! LONG 1m fold B  | fills 3
+     CHOCH 2026-07-29 17:21 @ 27740.0; 2026-07-29 17:49 @ 27690.5
+     BOS   2026-07-29 18:00 @ 27728.0   FVG 27727.25-27808.25   entry 2026-07-29 18:30 @ 27727.25
+       sweep 2026-07-29 17:30 [AS] extreme 27629.25   stop 27617.7288   LOSS   -1.014R  $  -222.04  stop      12 bars
+       sweep 2026-07-29 17:00 [PD+AS] extreme 27595.0    stop 27583.2054   LOSS   -1.010R  $  -291.09  stop      12 bars
+       sweep 2026-07-29 17:05 [AS] extreme 27634.25   stop 27622.8943   LOSS   -1.014R  $  -211.71  stop      12 bars
+       -> sum  -3.038R | mean  -1.013R | best  -1.010R | worst  -1.014R | $  -724.84
+
+C16  MNQ1! LONG 3m fold A  | fills 1
+     CHOCH 2026-06-10 13:36 @ 28890.0
+     BOS   2026-06-10 13:42 @ 28991.5   FVG 29002.25-29019.25   entry 2026-06-10 13:50 @ 29002.25
+       sweep 2026-06-10 13:05 [AS] extreme 28822.0    stop 28808.2282   LOSS   -1.008R  $  -391.04  stop      16 bars
+
+C17  MNQ1! SHORT 1m fold A  | fills 1
+     CHOCH 2026-05-29 17:54 @ 30334.0
+     BOS   2026-05-29 18:45 @ 30367.0   FVG 30352-30380.25   entry 2026-05-29 19:25 @ 30380.25
+       sweep 2026-05-29 17:45 [AS] extreme 30355.5    stop 30361.5423   LOSS   -1.080R  $   -40.42  stop       1 bars
+
+C18  MNQ1! SHORT 1m fold A  | fills 1
+     CHOCH 2026-05-29 20:40 @ 30383.25
+     BOS   2026-05-31 22:02 @ 30380.75   FVG 30381-30398.5   entry 2026-05-31 22:10 @ 30398.5
+       sweep 2026-05-29 20:05 [SW] extreme 30410.25   stop 30415.7992   LOSS   -1.087R  $   -37.60  stop       1 bars
+
+C19  MNQ1! SHORT 1m fold A  | fills 2
+     CHOCH 2026-06-03 04:46 @ 30715.25
+     BOS   2026-06-03 05:00 @ 30701.75   FVG 30693.25-30701.5   entry 2026-06-03 05:05 @ 30701.5
+       sweep 2026-06-03 04:10 [SW] extreme 30730.5    stop 30733.1726   LOSS   -1.047R  $   -66.35  stop      25 bars
+       sweep 2026-06-03 04:15 [SW] extreme 30727.75   stop 30730.4496   LOSS   -1.052R  $   -60.90  stop      25 bars
+       -> sum  -2.099R | mean  -1.050R | best  -1.047R | worst  -1.052R | $  -127.25
+
+C20  MNQ1! SHORT 1m fold A  | fills 3
+     CHOCH 2026-06-17 12:57 @ 30494.5; 2026-06-17 13:06 @ 30475.0
+     BOS   2026-06-17 13:30 @ 30488.75   FVG 30487.25-30497.25   entry 2026-06-17 13:40 @ 30497.25
+       sweep 2026-06-17 12:30 [SW] extreme 30503.25   stop 30508.2128   LOSS   -1.137R  $   -24.93  stop       1 bars
+       sweep 2026-06-17 12:35 [SW] extreme 30520.75   stop 30525.869    LOSS   -1.052R  $   -60.24  stop       1 bars
+       sweep 2026-06-17 12:55 [SW] extreme 30503.25   stop 30508.2084   LOSS   -1.137R  $   -24.92  stop       1 bars
+       -> sum  -3.326R | mean  -1.109R | best  -1.052R | worst  -1.137R | $  -110.09
+
+C21  MNQ1! SHORT 1m fold A  | fills 1
+     CHOCH 2026-06-17 13:56 @ 30426.5
+     BOS   2026-06-17 14:47 @ 30373.75   FVG 30381.75-30423.75   entry 2026-06-17 14:50 @ 30423.75
+       sweep 2026-06-17 13:45 [SW] extreme 30540.75   stop 30549.6618   LOSS   -1.012R  $  -254.82  timeout  144 bars
+
+C22  MNQ1! SHORT 1m fold A  | fills 2
+     CHOCH 2026-07-10 14:19 @ 29906.0
+     BOS   2026-07-10 14:32 @ 29845.5   FVG 29835-29913.75   entry 2026-07-10 15:15 @ 29913.75
+       sweep 2026-07-10 13:35 [SW] extreme 29937.0    stop 29944.3208   LOSS   -1.049R  $   -64.14  stop       1 bars
+       sweep 2026-07-10 13:50 [AS] extreme 29968.5    stop 29977.3944   LOSS   -1.024R  $  -130.29  stop       2 bars
+       -> sum  -2.073R | mean  -1.036R | best  -1.024R | worst  -1.049R | $  -194.43
+
+C23  MNQ1! SHORT 1m fold B  | fills 1
+     CHOCH 2026-07-20 11:47 @ 29075.5
+     BOS   2026-07-20 12:02 @ 29048.25   FVG 29006.25-29041   entry 2026-07-20 12:30 @ 29041.0
+       sweep 2026-07-20 11:20 [SW] extreme 29008.25   stop 29012.7084   LOSS   -1.053R  $   -59.58  stop      12 bars
+
+C24  MNQ1! SHORT 1m fold B  | fills 1
+     CHOCH 2026-07-31 20:30 @ 28364.25
+     BOS   2026-07-31 20:53 @ 28378.0   FVG 28349.5-28377   entry 2026-08-02 22:00 @ 28377.0
+       sweep 2026-07-31 20:00 [PD] extreme 28436.0    stop 28445.651    LOSS   -1.022R  $  -140.30  stop       1 bars
+
+C25  MNQ1! SHORT 3m fold A  | fills 2
+     CHOCH 2026-06-03 13:33 @ 30699.25
+     BOS   2026-06-03 13:42 @ 30703.75   FVG 30649.25-30694   entry 2026-06-03 14:15 @ 30694.0
+       sweep 2026-06-03 12:45 [AS] extreme 30733.75   stop 30737.5999   LOSS   -1.034R  $   -90.20  stop       5 bars
+       sweep 2026-06-03 12:50 [AS] extreme 30734.75   stop 30738.6571   LOSS   -1.034R  $   -92.31  stop       5 bars
+       -> sum  -2.068R | mean  -1.034R | best  -1.034R | worst  -1.034R | $  -182.51
+
+C26  MNQ1! SHORT 3m fold A  | fills 1
+     CHOCH 2026-07-06 00:00 @ 29963.5
+     BOS   2026-07-06 00:27 @ 29900.25   FVG 29908.75-29928   entry 2026-07-06 00:35 @ 29928.0
+       sweep 2026-07-05 23:40 [SW] extreme 29989.25   stop 29994.4412   LOSS   -1.023R  $  -135.88  timeout  144 bars
+
+C27  MNQ1! SHORT 3m fold B  | fills 2
+     CHOCH 2026-07-22 00:45 @ 29272.0
+     BOS   2026-07-22 01:00 @ 29258.5   FVG 29249-29273.25   entry 2026-07-22 01:45 @ 29273.25
+       sweep 2026-07-22 00:25 [SW] extreme 29316.75   stop 29321.2418   WIN    +4.969R  $  +476.92  target    71 bars
+       sweep 2026-07-22 00:20 [SW] extreme 29327.75   stop 29332.1834   WIN    +4.975R  $  +586.33  target   134 bars
+       -> sum  +9.944R | mean  +4.972R | best  +4.975R | worst  +4.969R | $ +1063.25
+
+====================================================================================================
+EVENT-LEVEL PERFORMANCE -- ALTERNATIVE IDENTITY (27 clusters)
+====================================================================================================
+
+  1m: clusters 18
+    clusters with >=1 win           3   (16.7%)   <- 'any-win' cluster win rate
+    clusters with all losses        15   (83.3%)
+    SUM-of-constituents  total R     -11.752   mean -0.6529   median -1.0490
+    MEAN-per-event       total R      -7.028   mean -0.3904   median -1.0255
+    post-drag dollars (sum)         $  -2249.68
+    max drawdown, mean-per-event series, entry order   9.256R
+
+  3m: clusters 9
+    clusters with >=1 win           2   (22.2%)   <- 'any-win' cluster win rate
+    clusters with all losses        7   (77.8%)
+    SUM-of-constituents  total R      +5.688   mean +0.6320   median -1.0220
+    MEAN-per-event       total R      +2.774   mean +0.3082   median -1.0220
+    post-drag dollars (sum)         $   +376.61
+    max drawdown, mean-per-event series, entry order   7.174R
+
+====================================================================================================
+EVENT-LEVEL PERFORMANCE -- PRIMARY IDENTITY (31 clusters)
+====================================================================================================
+
+  1m: clusters 22
+    clusters with >=1 win           3   (13.6%)   <- 'any-win' cluster win rate
+    clusters with all losses        19   (86.4%)
+    SUM-of-constituents  total R     -11.752   mean -0.5342   median -1.0255
+    MEAN-per-event       total R     -11.200   mean -0.5091   median -1.0220
+    post-drag dollars (sum)         $  -2249.68
+    max drawdown, mean-per-event series, entry order   12.901R
+
+  3m: clusters 9
+    clusters with >=1 win           2   (22.2%)   <- 'any-win' cluster win rate
+    clusters with all losses        7   (77.8%)
+    SUM-of-constituents  total R      +5.688   mean +0.6320   median -1.0220
+    MEAN-per-event       total R      +2.774   mean +0.3082   median -1.0220
+    post-drag dollars (sum)         $   +376.61
+    max drawdown, mean-per-event series, entry order   7.174R
+
+====================================================================================================
+SECTION 6 -- THE THREE NAMED EXAMPLES
+====================================================================================================
+
+MNQ long 1m fold B: 7 fills -> 3 events (alternative identity)
+  event 1: BOS 2026-07-16 13:30 @ 29488.5 | FVG 29471.5-29478.5 | entry 2026-07-16 13:35 @ 29471.5 | 2 fill(s)
+     sweep 2026-07-16 12:30 [PD] extreme 29386.75   -> stop 29379.1022   R=92.3978 pts   LOSS   -1.016R  stop
+     sweep 2026-07-16 12:50 [PD] extreme 29383.5    -> stop 29375.9721   R=95.5279 pts   LOSS   -1.016R  stop
+     event total  -2.032R | mean  -1.016R
+  event 2: BOS 2026-07-19 22:00 @ 28770.75 | FVG 28779-28791.5 | entry 2026-07-19 22:05 @ 28779.0 | 2 fill(s)
+     sweep 2026-07-17 20:00 [AS] extreme 28712.5    -> stop 28701.9267   R=77.0733 pts   LOSS   -1.019R  timeout
+     sweep 2026-07-17 20:10 [AS] extreme 28716.0    -> stop 28706.097    R=72.9030 pts   LOSS   -1.021R  timeout
+     event total  -2.040R | mean  -1.020R
+  event 3: BOS 2026-07-29 18:00 @ 27728.0 | FVG 27727.25-27808.25 | entry 2026-07-29 18:30 @ 27727.25 | 3 fill(s)
+     sweep 2026-07-29 17:30 [AS] extreme 27629.25   -> stop 27617.7288   R=109.5212 pts   LOSS   -1.014R  stop
+     sweep 2026-07-29 17:00 [PD+AS] extreme 27595.0    -> stop 27583.2054   R=144.0446 pts   LOSS   -1.010R  stop
+     sweep 2026-07-29 17:05 [AS] extreme 27634.25   -> stop 27622.8943   R=104.3557 pts   LOSS   -1.014R  stop
+     event total  -3.038R | mean  -1.013R
+
+MGC short 1m fold A: 2 fills -> 1 events (alternative identity)
+  event 1: BOS 2026-06-02 22:45 @ 4516.8 | FVG 4516-4517.7 | entry 2026-06-02 22:50 @ 4517.7 | 2 fill(s)
+     sweep 2026-06-02 22:10 [SW] extreme 4521.6     -> stop 4522.1464    R=4.4464 pts   WIN    +4.933R  target
+     sweep 2026-06-02 22:00 [SW] extreme 4522.8     -> stop 4523.3057    R=5.6057 pts   LOSS   -1.054R  stop
+     event total  +3.879R | mean  +1.939R
+
+MNQ short 3m fold B: 2 fills -> 1 events (alternative identity)
+  event 1: BOS 2026-07-22 01:00 @ 29258.5 | FVG 29249-29273.25 | entry 2026-07-22 01:45 @ 29273.25 | 2 fill(s)
+     sweep 2026-07-22 00:25 [SW] extreme 29316.75   -> stop 29321.2418   R=47.9918 pts   WIN    +4.969R  target
+     sweep 2026-07-22 00:20 [SW] extreme 29327.75   -> stop 29332.1834   R=58.9334 pts   WIN    +4.975R  target
+     event total  +9.944R | mean  +4.972R
+
+====================================================================================================
+SECTION 8 -- OVERLAP / CONCURRENCY  (descriptive only; no netting rule introduced)
+====================================================================================================
+
+Within multi-fill clusters: entry timestamp is part of BOTH identities, so every constituent
+of a multi-fill cluster enters on the SAME bar. Overlap is therefore certain and total at entry.
+
+Exit timestamps were NOT recorded in the Phase 13F ledger. Approximate exits below are
+entry + bars_held x 5min; true exits are LATER wherever a session gap intervenes, so these
+durations are LOWER BOUNDS and any overlap they show is also a lower bound.
+
+  MGC1! L 3m A entry 2026-07-13 05:20 @ 4070.4  (2 fills)
+    first entry 2026-07-13 05:20 | last entry 2026-07-13 05:20 (identical by construction)
+    earliest approx exit 2026-07-13 06:00 | latest approx exit 2026-07-13 06:00
+    positions overlap: YES | simultaneous exposure from convergence: 2 units
+
+  MGC1! S 1m A entry 2026-06-02 22:50 @ 4517.7  (2 fills)
+    first entry 2026-06-02 22:50 | last entry 2026-06-02 22:50 (identical by construction)
+    earliest approx exit 2026-06-02 23:20 | latest approx exit 2026-06-03 00:40
+    positions overlap: YES | simultaneous exposure from convergence: 2 units
+
+  MGC1! S 1m B entry 2026-08-09 22:10 @ 4404.0  (2 fills)
+    first entry 2026-08-09 22:10 | last entry 2026-08-09 22:10 (identical by construction)
+    earliest approx exit 2026-08-09 22:15 | latest approx exit 2026-08-09 23:00
+    positions overlap: YES | simultaneous exposure from convergence: 2 units
+
+  MNQ1! L 1m B entry 2026-07-16 13:35 @ 29471.5  (2 fills)
+    first entry 2026-07-16 13:35 | last entry 2026-07-16 13:35 (identical by construction)
+    earliest approx exit 2026-07-16 13:40 | latest approx exit 2026-07-16 13:40
+    positions overlap: YES | simultaneous exposure from convergence: 2 units
+
+  MNQ1! L 1m B entry 2026-07-19 22:05 @ 28779.0  (2 fills)
+    first entry 2026-07-19 22:05 | last entry 2026-07-19 22:05 (identical by construction)
+    earliest approx exit 2026-07-20 10:05 | latest approx exit 2026-07-20 10:05
+    positions overlap: YES | simultaneous exposure from convergence: 2 units
+
+  MNQ1! L 1m B entry 2026-07-29 18:30 @ 27727.25  (3 fills)
+    first entry 2026-07-29 18:30 | last entry 2026-07-29 18:30 (identical by construction)
+    earliest approx exit 2026-07-29 19:30 | latest approx exit 2026-07-29 19:30
+    positions overlap: YES | simultaneous exposure from convergence: 3 units
+
+  MNQ1! S 1m A entry 2026-06-03 05:05 @ 30701.5  (2 fills)
+    first entry 2026-06-03 05:05 | last entry 2026-06-03 05:05 (identical by construction)
+    earliest approx exit 2026-06-03 07:10 | latest approx exit 2026-06-03 07:10
+    positions overlap: YES | simultaneous exposure from convergence: 2 units
+
+  MNQ1! S 1m A entry 2026-06-17 13:40 @ 30497.25  (3 fills)
+    first entry 2026-06-17 13:40 | last entry 2026-06-17 13:40 (identical by construction)
+    earliest approx exit 2026-06-17 13:45 | latest approx exit 2026-06-17 13:45
+    positions overlap: YES | simultaneous exposure from convergence: 3 units
+
+  MNQ1! S 1m A entry 2026-07-10 15:15 @ 29913.75  (2 fills)
+    first entry 2026-07-10 15:15 | last entry 2026-07-10 15:15 (identical by construction)
+    earliest approx exit 2026-07-10 15:20 | latest approx exit 2026-07-10 15:25
+    positions overlap: YES | simultaneous exposure from convergence: 2 units
+
+  MNQ1! S 3m A entry 2026-06-03 14:15 @ 30694.0  (2 fills)
+    first entry 2026-06-03 14:15 | last entry 2026-06-03 14:15 (identical by construction)
+    earliest approx exit 2026-06-03 14:40 | latest approx exit 2026-06-03 14:40
+    positions overlap: YES | simultaneous exposure from convergence: 2 units
+
+  MNQ1! S 3m B entry 2026-07-22 01:45 @ 29273.25  (2 fills)
+    first entry 2026-07-22 01:45 | last entry 2026-07-22 01:45 (identical by construction)
+    earliest approx exit 2026-07-22 07:40 | latest approx exit 2026-07-22 12:55
+    positions overlap: YES | simultaneous exposure from convergence: 2 units
+
+Maximum simultaneous exposure caused by convergent sequences: 3 units (largest cluster size, alternative identity).
+Distinct clusters overlapping in time (same instrument, same LTF, lower bound): 0 pairs.
+
+====================================================================================================
+SECTION 7 -- DEPENDENCE SUMMARY
+====================================================================================================
+  primary (31)       all : execution N 40 | event N 31 | multi-fill clusters  9 | largest 2 | fills in multi-fill clusters 18 (45.0%)
+  primary (31)       1m  : execution N 28 | event N 22 | multi-fill clusters  6 | largest 2 | fills in multi-fill clusters 12 (42.9%)
+  primary (31)       3m  : execution N 12 | event N  9 | multi-fill clusters  3 | largest 2 | fills in multi-fill clusters  6 (50.0%)
+  alternative (27)   all : execution N 40 | event N 27 | multi-fill clusters 11 | largest 3 | fills in multi-fill clusters 24 (60.0%)
+  alternative (27)   1m  : execution N 28 | event N 18 | multi-fill clusters  8 | largest 3 | fills in multi-fill clusters 18 (64.3%)
+  alternative (27)   3m  : execution N 12 | event N  9 | multi-fill clusters  3 | largest 2 | fills in multi-fill clusters  6 (50.0%)

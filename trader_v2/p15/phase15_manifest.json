@@ -1,0 +1,310 @@
+{
+ "phase": "15 \u2014 controlled sensitivity / ablation",
+ "baseline": {
+  "commit_head": "18a67e45a4507abed78c56db1e397a5256462d94",
+  "v53_last_modified_commit": "a99bd734422dfc5631369d5e22d76b864f203fbe",
+  "execution_baseline_file": "trader_v2/p15/executed/V53_EXECUTED_BUILD.pine",
+  "execution_baseline_sha256": "2dafbafd5f6731e93c6fc4a2d55048bb32d5c0d75581ed7fffd877a0cf58efe6",
+  "canonical_source_file": "trader_v2/V53_ltf_sequence.pine",
+  "canonical_source_sha256": "7490766b6e3de062989a8e7f10939869cc6b679d253ce584f223064aa5797ef5",
+  "note": "execution_baseline_* is the provenance anchor. canonical_source_* is the frozen reference source; it did not execute. See provenance_correction.",
+  "results": {
+   "13F_AB": "40 fills, 6 wins, 34 losses, -6.065R",
+   "13G": "primary 31 clusters, alternative 27 clusters, 60.0% of fills in multi-fill clusters",
+   "14_foldC": "18 fills, 3 wins, 15 losses, -0.842R, 10 alternative events"
+  }
+ },
+ "invariant_across_all_experiments": [
+  "instruments MGC1!/MNQ1!",
+  "directions long/short",
+  "LTFs 1m/3m",
+  "folds A/B/C",
+  "date ranges",
+  "coverage policy",
+  "outcome model +5R/-1R adverse-first",
+  "$3.00 drag",
+  "maxBars 144",
+  "retBars 24",
+  "dispWait 12",
+  "5m sweep engine",
+  "5m ATR",
+  "pivot detector (>= left, > right)",
+  "reporting methodology",
+  "Phase 13G clustering identities"
+ ],
+ "experiments": [
+  {
+   "id": "A",
+   "name": "CHOCH pivot lookback",
+   "file": "trader_v2/p15/executed/V53_EXECUTED_BUILD.pine",
+   "sha256": "2dafbafd5f6731e93c6fc4a2d55048bb32d5c0d75581ed7fffd877a0cf58efe6",
+   "code_change": "NONE - file byte-identical to the EXECUTED baseline; only an input varies",
+   "modified_rule": "F3 LTF pivot strength (an existing input)",
+   "old_behavior": "swLen = 3 on both 1m and 3m",
+   "new_behavior": "swLen set to 2, 4 and 5 as three independent ablations; 3 is the control",
+   "parameters_changed": [
+    "in_14 (lSw)"
+   ],
+   "parameters_unchanged": [
+    "every other input"
+   ],
+   "assertions": "all Phase 13E assertions remain valid and must read 0",
+   "executed_against": "trader_v2/p15/executed/V53_EXECUTED_BUILD.pine",
+   "executed_against_sha256": "2dafbafd5f6731e93c6fc4a2d55048bb32d5c0d75581ed7fffd877a0cf58efe6",
+   "status": "COMPLETE - not rerun under the provenance correction; results preserved unchanged",
+   "provenance_note": "originally recorded against trader_v2/V53_ltf_sequence.pine (sha256 7490766b6e3de062989a8e7f10939869cc6b679d253ce584f223064aa5797ef5); corrected to the executed artifact"
+  },
+  {
+   "id": "B",
+   "name": "displacement range multiplier",
+   "file": "trader_v2/p15/executed/V53_EXECUTED_BUILD.pine",
+   "sha256": "2dafbafd5f6731e93c6fc4a2d55048bb32d5c0d75581ed7fffd877a0cf58efe6",
+   "code_change": "NONE - file byte-identical to the EXECUTED baseline; only an input varies",
+   "modified_rule": "\u00a77 displacement range multiplier",
+   "old_behavior": "range > 1.50 x ATR(5m), close-location clause unchanged",
+   "new_behavior": "multiplier set to 1.25, 1.75 and 2.00; close-location clause untouched; ATR timeframe untouched",
+   "parameters_changed": [
+    "in_6 (dispMin)"
+   ],
+   "parameters_unchanged": [
+    "close-location clause",
+    "ATR timeframe",
+    "every other input"
+   ],
+   "assertions": "all remain valid and must read 0",
+   "executed_against": "trader_v2/p15/executed/V53_EXECUTED_BUILD.pine",
+   "executed_against_sha256": "2dafbafd5f6731e93c6fc4a2d55048bb32d5c0d75581ed7fffd877a0cf58efe6",
+   "status": "COMPLETE - not rerun under the provenance correction; results preserved unchanged",
+   "provenance_note": "originally recorded against trader_v2/V53_ltf_sequence.pine (sha256 7490766b6e3de062989a8e7f10939869cc6b679d253ce584f223064aa5797ef5); corrected to the executed artifact"
+  },
+  {
+   "id": "C1",
+   "name": "CHOCH retest proximity band",
+   "file": "trader_v2/p15/exec_arms/V53_EXEC_P15_C1_retest_tol.pine",
+   "sha256": "905ef1a9db1d9c26774e2520de424f16fd398688fd8c6cb201e5a1172bfb490a",
+   "code_change": "2 sites, +5/-1 lines against the executed baseline",
+   "modified_rule": "CHOCH retest tolerance",
+   "old_behavior": "hitR = isLong ? l <= L : h >= L   (exact level, zero tolerance)",
+   "new_behavior": "hitR = isLong ? l <= L + tol : h >= L - tol, tol = 0.10 x ATR(14) on the LTF, obtained via request.security_lower_tf and used ONLY for this proximity test",
+   "parameters_changed": [
+    "CHOCH retest tolerance only"
+   ],
+   "parameters_unchanged": [
+    "FVG fill test still exact",
+    "stop",
+    "target",
+    "every frozen constant"
+   ],
+   "assertions": "all remain valid and must read 0",
+   "superseded_file": "trader_v2/p15/V53_P15_C1_retest_tol.pine",
+   "superseded_sha256": "d661f3df2b7a56d5a01004695fe80b4c976e32cdc1cc0e9cd70ed3f82862f9a3",
+   "superseded_status": "NEVER EXECUTED - derived from the canonical source, retained as history",
+   "derived_from": "trader_v2/p15/executed/V53_EXECUTED_BUILD.pine",
+   "derived_from_sha256": "2dafbafd5f6731e93c6fc4a2d55048bb32d5c0d75581ed7fffd877a0cf58efe6",
+   "output_layer": "byte-identical to the executed baseline (verified)",
+   "single_concept_verification": "trader_v2/p15/exec_arms/SINGLE_CONCEPT_VERIFICATION.txt",
+   "status": "COMPLETE"
+  },
+  {
+   "id": "D1",
+   "name": "BOS reference includes the CHOCH pivot",
+   "file": "trader_v2/p15/exec_arms/V53_EXEC_P15_D1_bos_reference.pine",
+   "sha256": "85861d7ed443006105f21bd43129fd3f1a5652d24684845920d08890c03ce583",
+   "code_change": "2 hunks, +2/-4 lines against the executed baseline",
+   "modified_rule": "F2 BOS reference eligibility",
+   "old_behavior": "most recent confirmed opposing pivot after CHOCH, CHOCH pivot EXCLUDED (falls back to the previous pivot when they coincide)",
+   "new_behavior": "most recent confirmed opposing pivot after CHOCH, CHOCH pivot INCLUDED",
+   "parameters_changed": [
+    "BOS reference eligibility only"
+   ],
+   "parameters_unchanged": [
+    "pivot detection",
+    "displacement",
+    "break-on-close rule"
+   ],
+   "assertions": "A22 (BOS pivot != CHOCH pivot) is EXPECTED TO BE NON-ZERO for this experiment by construction; it is retained and reported, not disabled. All other assertions must read 0.",
+   "superseded_file": "trader_v2/p15/V53_P15_D1_bos_include.pine",
+   "superseded_sha256": "7584797b3a736908837ed8458688cd2314ebcc6212bbebc4038364f0674a3cd5",
+   "superseded_status": "NEVER EXECUTED - derived from the canonical source, retained as history",
+   "derived_from": "trader_v2/p15/executed/V53_EXECUTED_BUILD.pine",
+   "derived_from_sha256": "2dafbafd5f6731e93c6fc4a2d55048bb32d5c0d75581ed7fffd877a0cf58efe6",
+   "output_layer": "byte-identical to the executed baseline (verified)",
+   "single_concept_verification": "trader_v2/p15/exec_arms/SINGLE_CONCEPT_VERIFICATION.txt",
+   "status": "COMPLETE"
+  },
+  {
+   "id": "E1",
+   "name": "first qualifying FVG at/after the displacement candle",
+   "file": "trader_v2/p15/exec_arms/V53_EXEC_P15_E1_fvg_association.pine",
+   "sha256": "686850a48eb9c2f8515acbbb5ccc4b6145a39eb91dacf7e2fcdd4e7ad1eec04d",
+   "code_change": "2 sites, +7/-4 lines against the executed baseline",
+   "modified_rule": "F4 FVG association",
+   "old_behavior": "exactly one test, at LTF bar d+1: the FVG whose middle candle IS the displacement candle; no gap => setup invalid",
+   "new_behavior": "scan forward from d+1, testing at each LTF bar the gap whose middle candle is the previous bar; take the FIRST qualifying gap whose middle candle is at or after the displacement candle",
+   "pre_registered_scan_bound": "the existing dispWait = 12 chart-bar deadline measured from the sweep bar. No new parameter is introduced. If the deadline passes with no qualifying gap, the setup is invalid.",
+   "flag": "This bound is a mechanical consequence of the rule change, not a second rule: the baseline needs no bound because it tests exactly one bar. Recorded explicitly for the reader's judgement.",
+   "parameters_changed": [
+    "FVG association only"
+   ],
+   "parameters_unchanged": [
+    "FVG geometry",
+    "fill rule",
+    "entry = far edge",
+    "retBars"
+   ],
+   "assertions": "A24 (BOS bar == displacement bar) is evaluated only on the first scan bar, where it retains its original meaning; it must still read 0. All other assertions must read 0.",
+   "superseded_file": "trader_v2/p15/V53_P15_E1_fvg_forward.pine",
+   "superseded_sha256": "5a02eb8d7456157f82ce21c0c99d32068695188d34e1ac2cbb0bc6b8eef66086",
+   "superseded_status": "NEVER EXECUTED - derived from the canonical source, retained as history",
+   "derived_from": "trader_v2/p15/executed/V53_EXECUTED_BUILD.pine",
+   "derived_from_sha256": "2dafbafd5f6731e93c6fc4a2d55048bb32d5c0d75581ed7fffd877a0cf58efe6",
+   "output_layer": "byte-identical to the executed baseline (verified)",
+   "single_concept_verification": "trader_v2/p15/exec_arms/SINGLE_CONCEPT_VERIFICATION.txt",
+   "status": "COMPLETE"
+  },
+  {
+   "id": "F1",
+   "name": "raw sweep extreme stop",
+   "file": "trader_v2/p15/exec_arms/V53_EXEC_P15_F1_stop_raw_extreme.pine",
+   "sha256": "4b305b21e3a2470575585945e79e94f91cb8a36d9f4524e70c72a4f620424af9",
+   "code_change": "1 line against the executed baseline",
+   "modified_rule": "\u00a714 / F5 stop construction",
+   "old_behavior": "long = sweep low - 0.20 x ATR(5m); short = sweep high + 0.20 x ATR(5m)",
+   "new_behavior": "long = sweep low; short = sweep high (no buffer)",
+   "parameters_changed": [
+    "stop buffer only"
+   ],
+   "parameters_unchanged": [
+    "ATR timeframe",
+    "target 5R",
+    "R-band 0.05-3.00 x ATR",
+    "drag"
+   ],
+   "assertions": "all remain valid and must read 0",
+   "superseded_file": "trader_v2/p15/V53_P15_F1_raw_stop.pine",
+   "superseded_sha256": "30f39a2bbfe1bbf8539e3fadf39641288a8eb1285e32e2617afc05eadd4a34d2",
+   "superseded_status": "NEVER EXECUTED - derived from the canonical source, retained as history",
+   "derived_from": "trader_v2/p15/executed/V53_EXECUTED_BUILD.pine",
+   "derived_from_sha256": "2dafbafd5f6731e93c6fc4a2d55048bb32d5c0d75581ed7fffd877a0cf58efe6",
+   "output_layer": "byte-identical to the executed baseline (verified)",
+   "single_concept_verification": "trader_v2/p15/exec_arms/SINGLE_CONCEPT_VERIFICATION.txt",
+   "status": "COMPLETE"
+  },
+  {
+   "id": "G1",
+   "name": "first-eligible CHOCH reference, no roll",
+   "file": "trader_v2/p15/exec_arms/V53_EXEC_P15_G1_first_choch_pivot.pine",
+   "sha256": "ef56c15f47988307e0ea47bdc2a18923d2125d712b152ffd56931c5711bf3c11",
+   "code_change": "6 hunks, +14/-8 lines against the executed baseline",
+   "modified_rule": "F1 CHOCH reference selection",
+   "old_behavior": "most recent confirmed eligible opposing pivot, re-evaluated forward on every LTF bar",
+   "new_behavior": "the FIRST confirmed eligible opposing pivot after the sweep is latched and retained for the life of the sequence",
+   "parameters_changed": [
+    "CHOCH reference selection only"
+   ],
+   "parameters_unchanged": [
+    "pivot detection",
+    "swLen",
+    "eligibility window",
+    "break-on-close rule",
+    "BOS"
+   ],
+   "assertions": "counter 4 changes meaning (it now counts how often a roll WOULD have occurred) and is reported as such; A21/A32 remain valid and must read 0. All other assertions must read 0.",
+   "superseded_file": "trader_v2/p15/V53_P15_G1_first_choch.pine",
+   "superseded_sha256": "2af86017ac4caa2432eee09cd63ac050949a076740db559f212d533b63c4a8bc",
+   "superseded_status": "NEVER EXECUTED - derived from the canonical source, retained as history",
+   "derived_from": "trader_v2/p15/executed/V53_EXECUTED_BUILD.pine",
+   "derived_from_sha256": "2dafbafd5f6731e93c6fc4a2d55048bb32d5c0d75581ed7fffd877a0cf58efe6",
+   "output_layer": "byte-identical to the executed baseline (verified)",
+   "single_concept_verification": "trader_v2/p15/exec_arms/SINGLE_CONCEPT_VERIFICATION.txt",
+   "status": "COMPLETE"
+  }
+ ],
+ "provenance_correction": {
+  "raised": "Phase 15, at the start of Experiment C1, after Experiment B completed",
+  "record": "trader_v2/p15/PHASE15_PROVENANCE_CORRECTION.md",
+  "hard_stop_record": "trader_v2/p15/PHASE15_HARD_STOP.md",
+  "summary": "The initial manifest identified V53_ltf_sequence.pine as the execution baseline. An audit during Experiment B preparation established that TradingView had actually been executing the artifact now preserved at p15/executed/V53_EXECUTED_BUILD.pine. The two were compared and found to have identical strategy-bearing logic, differing only in write-only diagnostics and the output layer.",
+  "canonical_source": {
+   "file": "trader_v2/V53_ltf_sequence.pine",
+   "sha256": "7490766b6e3de062989a8e7f10939869cc6b679d253ce584f223064aa5797ef5",
+   "role": "canonical frozen V53 source; Phase 13E audited it; NOT the artifact that executed",
+   "status": "unmodified and to remain unmodified"
+  },
+  "executed_baseline": {
+   "file": "trader_v2/p15/executed/V53_EXECUTED_BUILD.pine",
+   "sha256": "2dafbafd5f6731e93c6fc4a2d55048bb32d5c0d75581ed7fffd877a0cf58efe6",
+   "lines": 602,
+   "role": "the actual TradingView artifact that produced all Phase 15 measurements; provenance anchor for the whole phase",
+   "captured_via": "pine_get_source on study USER;b798deb2c9084500a1c38b14775961da version 137.0",
+   "capture_integrity": "reported 602 lines / 27,240 chars; captured file is 602 lines / 27,241 bytes (difference is the trailing newline)"
+  },
+  "equivalence_verification": {
+   "method": "strategy sections 1-6 of both files extracted (everything before the line 'g(i) => str.tostring(array.get(K, i))'), comments and blank lines stripped, then diffed",
+   "strategy_bearing_lines_identical": true,
+   "differences_found": [
+    "writes to K33 and K34 in the section 6 detector-verification block",
+    "writes to K35 in the same block",
+    "the `tie` boolean local and the loop that sets it, which exists only to gate K35"
+   ],
+   "difference_classification": "write-only diagnostics. K33, K34, K35 and `tie` are never read by any decision in the program; the canonical build only displays them as table rows D33/D34/D35. They cannot affect strategy behaviour.",
+   "also_identical": [
+    "all 15 inputs, in the same order, so the in_0..in_14 mapping is preserved",
+    "5m sweep engine",
+    "LTF pivot detector",
+    "CHOCH",
+    "CHOCH retest (zero tolerance)",
+    "BOS + displacement with CHOCH-pivot exclusion",
+    "FVG selection",
+    "fill and R-band test",
+    "outcome model",
+    "arm block",
+    "SP, RB, and the fold boundaries FB/FC/FE"
+   ],
+   "other_differences": "comments, and the section 7 output layer (table structure and ledger header)",
+   "behavioural_equivalence_established": true
+  },
+  "A_B_provenance": "Experiments A and B were generated by the executed V53 artifact (p15/executed/V53_EXECUTED_BUILD.pine), not directly by V53_ltf_sequence.pine.",
+  "A_B_validity": "Experiments A and B remain valid because the executed artifact's strategy-bearing logic is identical to the canonical V53, and the intended experimental input was the only strategy-bearing change between arms. They are NOT rerun and their recorded results are preserved unchanged.",
+  "C_to_G_provenance": "Experiments C1-G1 are generated from the actual executed baseline artifact, with exactly one predefined strategy-bearing modification per arm. The executed build's diagnostic and output layers are carried through byte-identical.",
+  "superseded_artifacts": {
+   "files": [
+    "trader_v2/p15/V53_P15_C1_retest_tol.pine",
+    "trader_v2/p15/V53_P15_D1_bos_include.pine",
+    "trader_v2/p15/V53_P15_E1_fvg_forward.pine",
+    "trader_v2/p15/V53_P15_F1_raw_stop.pine",
+    "trader_v2/p15/V53_P15_G1_first_choch.pine"
+   ],
+   "status": "SUPERSEDED AND NEVER EXECUTED",
+   "reason": "derived from the canonical source rather than the executed artifact; retained as historical evidence, not deleted"
+  }
+ },
+ "baseline_original_entry_retained_for_history": {
+  "commit_head": "18a67e45a4507abed78c56db1e397a5256462d94",
+  "v53_last_modified_commit": "a99bd734422dfc5631369d5e22d76b864f203fbe",
+  "file": "trader_v2/V53_ltf_sequence.pine",
+  "sha256": "7490766b6e3de062989a8e7f10939869cc6b679d253ce584f223064aa5797ef5",
+  "results": {
+   "13F_AB": "40 fills, 6 wins, 34 losses, -6.065R",
+   "13G": "primary 31 clusters, alternative 27 clusters, 60.0% of fills in multi-fill clusters",
+   "14_foldC": "18 fills, 3 wins, 15 losses, -0.842R, 10 alternative events"
+  }
+ },
+ "final_report": "trader_v2/PHASE15_SENSITIVITY_REPORT.md",
+ "joint_analysis": {
+  "script": "trader_v2/p15/p15_joint.py",
+  "output": "trader_v2/p15/P15_JOINT_DATA.txt"
+ },
+ "runs_executed": {
+  "baseline": 8,
+  "A": 24,
+  "B": 24,
+  "C1": 8,
+  "D1": 8,
+  "E1": 8,
+  "F1": 8,
+  "G1": 8,
+  "total": 96
+ },
+ "phase_status": "COMPLETE - no winner declared, no parameter recommendation made"
+}

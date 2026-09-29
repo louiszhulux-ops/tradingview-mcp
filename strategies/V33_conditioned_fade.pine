@@ -1,0 +1,194 @@
+//@version=6
+// V33 CONDITIONED FADE -- does V30's conditioning lift V32's fade signal?
+// Every trigger entered FADED and FOLLOWED on the same bar, so the control is
+// per-cell. Cells = ADX bucket x location. Stop 1.5xATR, target 2R.
+// Pre-registered ordering hypothesis: strategies/V33_FADE_PROTOCOL.md
+// RESULT: the ADX ordering did NOT replicate cross-market -> hypothesis rejected.
+// The UNCONDITIONAL pooled fade did: positive on 8/8 markets, +0.0807R gross.
+indicator("V33 CONDITIONED FADE", overlay=true)
+
+trigDir  = input.int(1,  "side  1=long-trig  -1=short-trig", minval=-1, maxval=1, group="Trigger")
+brkLen   = input.int(20, "break lookback", group="Trigger")
+swLen    = input.int(10, "swing pivot len", group="Trigger")
+lookK    = input.int(6,  "sweep reclaim window", group="Trigger")
+emaFL    = input.int(20, "ema fast", group="Trigger")
+emaSL    = input.int(50, "ema slow", group="Trigger")
+vwapM    = input.int(5,  "bars beyond vwap", group="Trigger")
+
+stopA    = input.float(1.5, "stop (xATR)", group="Barriers")
+tgtR     = input.float(2.0, "target (xR)", group="Barriers")
+maxBars  = input.int(288,   "timeout bars", group="Barriers")
+locATR   = input.float(0.5, "at-extreme window (xATR)", group="Cells")
+adx1     = input.float(15,  "adx cut 1", group="Cells")
+adx2     = input.float(22,  "adx cut 2", group="Cells")
+adx3     = input.float(30,  "adx cut 3", group="Cells")
+
+atr = ta.atr(14)
+eF  = ta.ema(close, emaFL)
+eS  = ta.ema(close, emaSL)
+vw  = ta.vwap(hlc3)
+[dip, dim, adx] = ta.dmi(14, 14)
+
+hiLvl = ta.highest(high, brkLen)[1]
+loLvl = ta.lowest(low,  brkLen)[1]
+brkUp = not na(hiLvl) and close > hiLvl and close[1] <= hiLvl
+brkDn = not na(loLvl) and close < loLvl and close[1] >= loLvl
+
+ph = ta.pivothigh(high, swLen, swLen)
+pl = ta.pivotlow(low,  swLen, swLen)
+var float lastPH = na
+var float lastPL = na
+if not na(ph)
+    lastPH := ph
+if not na(pl)
+    lastPL := pl
+var int   swpLoBar = -99999
+var float swpLoLvl = na
+var int   swpHiBar = -99999
+var float swpHiLvl = na
+if not na(lastPL) and low < lastPL
+    swpLoBar := bar_index
+    swpLoLvl := lastPL
+if not na(lastPH) and high > lastPH
+    swpHiBar := bar_index
+    swpHiLvl := lastPH
+swpUp = not na(swpLoLvl) and (bar_index - swpLoBar) <= lookK and close > swpLoLvl and close[1] <= swpLoLvl
+swpDn = not na(swpHiLvl) and (bar_index - swpHiBar) <= lookK and close < swpHiLvl and close[1] >= swpHiLvl
+
+xUpF = ta.crossover(close, eF)
+xDnF = ta.crossunder(close, eF)
+pulUp = eF > eS and xUpF
+pulDn = eF < eS and xDnF
+
+xUpV  = ta.crossover(close, vw)
+xDnV  = ta.crossunder(close, vw)
+bsAbv = ta.barssince(close > vw)
+bsBlw = ta.barssince(close < vw)
+vwUp  = xUpV and nz(bsAbv[1], 999) >= vwapM
+vwDn  = xDnV and nz(bsBlw[1], 999) >= vwapM
+
+fire = trigDir == 1 ? (brkUp or swpUp or pulUp or vwUp) : (brkDn or swpDn or pulDn or vwDn)
+
+newDay = ta.change(time("D")) != 0
+var float dHi = na
+var float dLo = na
+if newDay
+    dHi := high
+    dLo := low
+else
+    dHi := math.max(nz(dHi, high), high)
+    dLo := math.min(nz(dLo, low), low)
+
+atExt = trigDir == 1 ? close >= dHi - locATR * atr : close <= dLo + locATR * atr
+adxB  = adx < adx1 ? 0 : adx < adx2 ? 1 : adx < adx3 ? 2 : 3
+cellNow = adxB * 2 + (atExt ? 0 : 1)
+
+SL = 4
+TOT = 8
+var int[]   act  = array.new_int(TOT, 0)
+var float[] ent  = array.new_float(TOT, na)
+var float[] stp  = array.new_float(TOT, na)
+var float[] tpx  = array.new_float(TOT, na)
+var int[]   bIn  = array.new_int(TOT, 0)
+var int[]   cel  = array.new_int(TOT, 0)
+var int[]   cnt  = array.new_int(16, 0)
+var int[]   wns  = array.new_int(16, 0)
+var float[] sumR = array.new_float(16, 0.0)
+var int  skipped = 0
+
+for i = 0 to TOT - 1
+    if array.get(act, i) == 1
+        isFade = i < SL
+        fadeIsLong = trigDir == -1
+        isLong = isFade ? fadeIsLong : not fadeIsLong
+        e  = array.get(ent, i)
+        sp = array.get(stp, i)
+        tp = array.get(tpx, i)
+        acc = (isFade ? 0 : 8) + array.get(cel, i)
+        b = array.get(bIn, i) + 1
+        array.set(bIn, i, b)
+        float r = na
+        if isLong
+            if low <= sp
+                r := -1.0
+            else if high >= tp
+                r := tgtR
+        else
+            if high >= sp
+                r := -1.0
+            else if low <= tp
+                r := tgtR
+        if na(r) and b >= maxBars
+            r := isLong ? (close - e) / (e - sp) : (e - close) / (sp - e)
+        if not na(r)
+            array.set(act,  i, 0)
+            array.set(cnt,  acc, array.get(cnt, acc) + 1)
+            array.set(sumR, acc, array.get(sumR, acc) + r)
+            if r > 0
+                array.set(wns, acc, array.get(wns, acc) + 1)
+
+d = stopA * atr
+if fire and d > 0 and not na(atr) and not na(adx) and not na(dHi)
+    int sf = -1
+    int sl = -1
+    for s = 0 to SL - 1
+        if sf < 0 and array.get(act, s) == 0
+            sf := s
+        if sl < 0 and array.get(act, SL + s) == 0
+            sl := SL + s
+    if sf < 0 or sl < 0
+        skipped := skipped + 1
+    else
+        fadeLong = trigDir == -1
+        array.set(act, sf, 1)
+        array.set(ent, sf, close)
+        array.set(bIn, sf, 0)
+        array.set(cel, sf, cellNow)
+        array.set(stp, sf, fadeLong ? close - d : close + d)
+        array.set(tpx, sf, fadeLong ? close + tgtR * d : close - tgtR * d)
+        array.set(act, sl, 1)
+        array.set(ent, sl, close)
+        array.set(bIn, sl, 0)
+        array.set(cel, sl, cellNow)
+        array.set(stp, sl, fadeLong ? close + d : close - d)
+        array.set(tpx, sl, fadeLong ? close - tgtR * d : close + tgtR * d)
+
+lbl(c) => (c < 2 ? "adx<" + str.tostring(adx1, "#") : c < 4 ? "adx" + str.tostring(adx1, "#") + "-" + str.tostring(adx2, "#") : c < 6 ? "adx" + str.tostring(adx2, "#") + "-" + str.tostring(adx3, "#") : "adx>" + str.tostring(adx3, "#")) + (c % 2 == 0 ? " EXT" : " mid")
+
+var table tb = table.new(position.top_right, 7, 12, border_width=1)
+if barstate.islast
+    hdr = trigDir == 1 ? "FADE longtrig" : "FADE shorttrig"
+    table.cell(tb, 0, 0, hdr,      text_color=color.white, bgcolor=color.navy, text_size=size.tiny)
+    table.cell(tb, 1, 0, "n",      text_color=color.white, bgcolor=color.navy, text_size=size.tiny)
+    table.cell(tb, 2, 0, "win%F",  text_color=color.white, bgcolor=color.navy, text_size=size.tiny)
+    table.cell(tb, 3, 0, "R_fade", text_color=color.white, bgcolor=color.navy, text_size=size.tiny)
+    table.cell(tb, 4, 0, "R_foll", text_color=color.white, bgcolor=color.navy, text_size=size.tiny)
+    table.cell(tb, 5, 0, "edge",   text_color=color.white, bgcolor=color.navy, text_size=size.tiny)
+    table.cell(tb, 6, 0, "adxAll", text_color=color.white, bgcolor=color.navy, text_size=size.tiny)
+    for c = 0 to 7
+        nf = array.get(cnt, c)
+        nl = array.get(cnt, c + 8)
+        rf = nf > 0 ? array.get(sumR, c) / nf : na
+        rl = nl > 0 ? array.get(sumR, c + 8) / nl : na
+        wf = nf > 0 ? 100.0 * array.get(wns, c) / nf : na
+        ed = nf > 0 and nl > 0 ? (rf - rl) / 2.0 : na
+        table.cell(tb, 0, c + 1, lbl(c), text_size=size.tiny)
+        table.cell(tb, 1, c + 1, str.tostring(nf), text_size=size.tiny)
+        table.cell(tb, 2, c + 1, str.tostring(wf, "#.#"), text_size=size.tiny)
+        table.cell(tb, 3, c + 1, str.tostring(rf, "#.####"), text_size=size.tiny)
+        table.cell(tb, 4, c + 1, str.tostring(rl, "#.####"), text_size=size.tiny)
+        table.cell(tb, 5, c + 1, str.tostring(ed, "#.####"), text_size=size.tiny, bgcolor=na(ed) ? color.gray : ed > 0 ? color.new(color.green, 70) : color.new(color.red, 70))
+    for g = 0 to 3
+        na1 = array.get(cnt, g * 2) + array.get(cnt, g * 2 + 1)
+        sa1 = array.get(sumR, g * 2) + array.get(sumR, g * 2 + 1)
+        table.cell(tb, 6, g + 1, na1 > 0 ? str.tostring(sa1 / na1, "#.####") + " n" + str.tostring(na1) : "-", text_size=size.tiny)
+    tn = 0
+    ts = 0.0
+    for c = 0 to 7
+        tn := tn + array.get(cnt, c)
+        ts := ts + array.get(sumR, c)
+    table.cell(tb, 0, 9, "POOLED fade", text_size=size.tiny, bgcolor=color.new(color.yellow, 70))
+    table.cell(tb, 1, 9, str.tostring(tn), text_size=size.tiny)
+    table.cell(tb, 3, 9, tn > 0 ? str.tostring(ts / tn, "#.####") : "-", text_size=size.tiny)
+    table.cell(tb, 4, 9, "skip=" + str.tostring(skipped), text_size=size.tiny)
+    table.cell(tb, 5, 9, "bars=" + str.tostring(bar_index), text_size=size.tiny)

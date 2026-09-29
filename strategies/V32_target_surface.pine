@@ -1,0 +1,204 @@
+//@version=6
+// =====================================================================
+// V32 TARGET SURFACE -- how does the R-edge decay as the target tightens?
+//
+// Stop is FIXED at stopA x ATR for every configuration, so cost_R is
+// constant and the target multiple is the only thing that varies.
+// Every trigger is taken simultaneously WITH it and AGAINST it, so the
+// drift-free statistic (with - against)/2 is available at every target.
+//
+// Both barriers touched inside one bar -> the STOP is assumed first.
+// Protocol and decision rule: strategies/V32_TARGET_PROTOCOL.md
+// =====================================================================
+indicator("V32 TARGET SURFACE", overlay=true)
+
+trigMode = input.int(5,  "trig 1brk 2sweep 3pull 4vwap 5all", minval=1, maxval=5, group="Trigger")
+trigDir  = input.int(1,  "side  1=long-trig  -1=short-trig", minval=-1, maxval=1, group="Trigger")
+brkLen   = input.int(20, "break lookback", group="Trigger")
+swLen    = input.int(10, "swing pivot len", group="Trigger")
+lookK    = input.int(6,  "sweep reclaim window", group="Trigger")
+emaFL    = input.int(20, "ema fast", group="Trigger")
+emaSL    = input.int(50, "ema slow", group="Trigger")
+vwapM    = input.int(5,  "bars beyond vwap", group="Trigger")
+
+gridMode = input.int(1,  "grid 1=tight(.25-2) 2=wide(.5-6)", minval=1, maxval=2, group="Barriers")
+stopA    = input.float(1.5, "stop (xATR)", group="Barriers")
+maxBars  = input.int(288,   "timeout bars", group="Barriers")
+useSess  = input.bool(false, "session filter", group="Barriers")
+sessStr  = input.session("0830-1500", "session", group="Barriers")
+sessTz   = input.string("America/New_York", "session tz", group="Barriers")
+
+atr = ta.atr(14)
+eF  = ta.ema(close, emaFL)
+eS  = ta.ema(close, emaSL)
+vw  = ta.vwap(hlc3)
+
+// ---------- triggers (all computed unconditionally) ----------
+hiLvl = ta.highest(high, brkLen)[1]
+loLvl = ta.lowest(low,  brkLen)[1]
+brkUp = not na(hiLvl) and close > hiLvl and close[1] <= hiLvl
+brkDn = not na(loLvl) and close < loLvl and close[1] >= loLvl
+
+ph = ta.pivothigh(high, swLen, swLen)
+pl = ta.pivotlow(low,  swLen, swLen)
+var float lastPH = na
+var float lastPL = na
+if not na(ph)
+    lastPH := ph
+if not na(pl)
+    lastPL := pl
+var int   swpLoBar = -99999
+var float swpLoLvl = na
+var int   swpHiBar = -99999
+var float swpHiLvl = na
+if not na(lastPL) and low < lastPL
+    swpLoBar := bar_index
+    swpLoLvl := lastPL
+if not na(lastPH) and high > lastPH
+    swpHiBar := bar_index
+    swpHiLvl := lastPH
+swpUp = not na(swpLoLvl) and (bar_index - swpLoBar) <= lookK and close > swpLoLvl and close[1] <= swpLoLvl
+swpDn = not na(swpHiLvl) and (bar_index - swpHiBar) <= lookK and close < swpHiLvl and close[1] >= swpHiLvl
+
+xUpF = ta.crossover(close, eF)
+xDnF = ta.crossunder(close, eF)
+pulUp = eF > eS and xUpF
+pulDn = eF < eS and xDnF
+
+xUpV  = ta.crossover(close, vw)
+xDnV  = ta.crossunder(close, vw)
+bsAbv = ta.barssince(close > vw)
+bsBlw = ta.barssince(close < vw)
+vwUp  = xUpV and nz(bsAbv[1], 999) >= vwapM
+vwDn  = xDnV and nz(bsBlw[1], 999) >= vwapM
+
+anyUp  = brkUp or swpUp or pulUp or vwUp
+anyDn  = brkDn or swpDn or pulDn or vwDn
+trigUp = trigMode == 1 ? brkUp : trigMode == 2 ? swpUp : trigMode == 3 ? pulUp : trigMode == 4 ? vwUp : anyUp
+trigDn = trigMode == 1 ? brkDn : trigMode == 2 ? swpDn : trigMode == 3 ? pulDn : trigMode == 4 ? vwDn : anyDn
+fire   = trigDir == 1 ? trigUp : trigDn
+
+inSess = not useSess or not na(time(timeframe.period, sessStr, sessTz))
+
+// ---------- barrier engine: 6 targets x {with, against} ----------
+NT = 6
+SL = 4
+TOT = 48
+var float[] TGT  = array.from(0.25, 0.5, 0.75, 1.0, 1.5, 2.0)
+if barstate.isfirst and gridMode == 2
+    array.set(TGT, 0, 0.5)
+    array.set(TGT, 1, 1.0)
+    array.set(TGT, 2, 2.0)
+    array.set(TGT, 3, 3.0)
+    array.set(TGT, 4, 4.0)
+    array.set(TGT, 5, 6.0)
+var int[]   act  = array.new_int(TOT, 0)
+var float[] ent  = array.new_float(TOT, na)
+var float[] stp  = array.new_float(TOT, na)
+var float[] tpx  = array.new_float(TOT, na)
+var int[]   bIn  = array.new_int(TOT, 0)
+var int[]   cnt  = array.new_int(12, 0)
+var int[]   wns  = array.new_int(12, 0)
+var float[] sumR = array.new_float(12, 0.0)
+var int[]   sumB = array.new_int(12, 0)
+var int[]   toc  = array.new_int(12, 0)
+var int  skipped = 0
+
+// resolve BEFORE new entries so a trade never resolves on its own entry bar
+for i = 0 to TOT - 1
+    if array.get(act, i) == 1
+        k   = i < NT * SL ? 0 : 1
+        t   = int(math.floor((i % (NT * SL)) / SL))
+        acc = k * NT + t
+        e   = array.get(ent, i)
+        sp  = array.get(stp, i)
+        tp  = array.get(tpx, i)
+        isLong = k == 0 ? trigDir == 1 : trigDir == -1
+        b = array.get(bIn, i) + 1
+        array.set(bIn, i, b)
+        float r = na
+        if isLong
+            if low <= sp
+                r := -1.0
+            else if high >= tp
+                r := (tp - e) / (e - sp)
+        else
+            if high >= sp
+                r := -1.0
+            else if low <= tp
+                r := (e - tp) / (sp - e)
+        if na(r) and b >= maxBars
+            r := isLong ? (close - e) / (e - sp) : (e - close) / (sp - e)
+            array.set(toc, acc, array.get(toc, acc) + 1)
+        if not na(r)
+            array.set(act,  i, 0)
+            array.set(cnt,  acc, array.get(cnt, acc) + 1)
+            array.set(sumR, acc, array.get(sumR, acc) + r)
+            array.set(sumB, acc, array.get(sumB, acc) + b)
+            if r > 0
+                array.set(wns, acc, array.get(wns, acc) + 1)
+
+d = stopA * atr
+// A trigger is taken only if EVERY (side,target) cell has a free slot, so all
+// twelve cells are measured on an identical set of triggers.
+if fire and inSess and d > 0 and not na(atr)
+    bool allFree = true
+    for c = 0 to 11
+        bool fr = false
+        for s = 0 to SL - 1
+            if array.get(act, c * SL + s) == 0
+                fr := true
+        if not fr
+            allFree := false
+    if not allFree
+        skipped := skipped + 1
+    else
+        for c = 0 to 11
+            k = c < NT ? 0 : 1
+            t = c % NT
+            m = array.get(TGT, t)
+            lng = k == 0 ? trigDir == 1 : trigDir == -1
+            bool placed = false
+            for s = 0 to SL - 1
+                idx = c * SL + s
+                if not placed and array.get(act, idx) == 0
+                    placed := true
+                    array.set(act, idx, 1)
+                    array.set(ent, idx, close)
+                    array.set(bIn, idx, 0)
+                    array.set(stp, idx, lng ? close - d : close + d)
+                    array.set(tpx, idx, lng ? close + m * d : close - m * d)
+
+tname = trigMode == 1 ? "brk" : trigMode == 2 ? "sweep" : trigMode == 3 ? "pull" : trigMode == 4 ? "vwap" : "ALL"
+var table tb = table.new(position.top_right, 8, NT + 2, border_width=1)
+if barstate.islast
+    table.cell(tb, 0, 0, tname + (trigDir == 1 ? " LONGtrig" : " SHORTtrig"), text_color=color.white, bgcolor=color.navy, text_size=size.tiny)
+    table.cell(tb, 1, 0, "n",      text_color=color.white, bgcolor=color.navy, text_size=size.tiny)
+    table.cell(tb, 2, 0, "win%W",  text_color=color.white, bgcolor=color.navy, text_size=size.tiny)
+    table.cell(tb, 3, 0, "R_with", text_color=color.white, bgcolor=color.navy, text_size=size.tiny)
+    table.cell(tb, 4, 0, "win%A",  text_color=color.white, bgcolor=color.navy, text_size=size.tiny)
+    table.cell(tb, 5, 0, "R_agst", text_color=color.white, bgcolor=color.navy, text_size=size.tiny)
+    table.cell(tb, 6, 0, "edge",   text_color=color.white, bgcolor=color.navy, text_size=size.tiny)
+    table.cell(tb, 7, 0, "bars",   text_color=color.white, bgcolor=color.navy, text_size=size.tiny)
+    for t = 0 to NT - 1
+        j  = NT + t
+        cw = array.get(cnt, t)
+        ca = array.get(cnt, j)
+        rw = cw > 0 ? array.get(sumR, t) / cw : na
+        ra = ca > 0 ? array.get(sumR, j) / ca : na
+        ww = cw > 0 ? 100.0 * array.get(wns, t) / cw : na
+        wa = ca > 0 ? 100.0 * array.get(wns, j) / ca : na
+        ed = cw > 0 and ca > 0 ? (rw - ra) / 2.0 : na
+        bb = cw > 0 ? array.get(sumB, t) / cw : na
+        table.cell(tb, 0, t + 1, str.tostring(array.get(TGT, t), "#.##") + "R", text_size=size.tiny)
+        table.cell(tb, 1, t + 1, str.tostring(cw), text_size=size.tiny)
+        table.cell(tb, 2, t + 1, str.tostring(ww, "#.#"), text_size=size.tiny)
+        table.cell(tb, 3, t + 1, str.tostring(rw, "#.####"), text_size=size.tiny)
+        table.cell(tb, 4, t + 1, str.tostring(wa, "#.#"), text_size=size.tiny)
+        table.cell(tb, 5, t + 1, str.tostring(ra, "#.####"), text_size=size.tiny)
+        table.cell(tb, 6, t + 1, str.tostring(ed, "#.####"), text_size=size.tiny, bgcolor=na(ed) ? color.gray : ed > 0 ? color.new(color.green, 70) : color.new(color.red, 70))
+        table.cell(tb, 7, t + 1, str.tostring(bb, "#"), text_size=size.tiny)
+    table.cell(tb, 0, NT + 1, "timeouts", text_size=size.tiny)
+    table.cell(tb, 1, NT + 1, "to=" + str.tostring(array.get(toc, 0)) + " skip=" + str.tostring(skipped), text_size=size.tiny)
+    table.cell(tb, 2, NT + 1, "stop=" + str.tostring(stopA, "#.#") + "xATR", text_size=size.tiny)
+    table.cell(tb, 3, NT + 1, "bars=" + str.tostring(bar_index), text_size=size.tiny)

@@ -1,0 +1,131 @@
+{
+  "asserts": {
+    "all_zero": true,
+    "raw": "all 0",
+    "values": null
+  },
+  "cell": {
+    "direction": "S",
+    "fold": "A",
+    "instrument": "MGC1!",
+    "instrument_short": "MGC",
+    "ltf": "3m"
+  },
+  "coverage": {
+    "end_ms": 1784159700000,
+    "end_utc": "2026-07-15 23:55",
+    "start_ms": 1779660000000,
+    "start_utc": "2026-05-24 22:00"
+  },
+  "fills": [
+    {
+      "derived": {
+        "checks": {
+          "pnl_reconciled": true,
+          "r_reconciled": true
+        },
+        "note": "target_price is arithmetic (entry ± tgtR × |entry − stop|, tgtR = 5.0 frozen). V53 does not emit a target price, so this is a derived convenience value, cross-validated against recorded P&L on every target exit — not a recorded expectation. stop_inverted marks a stop on the far side of entry, a real recorded V53 outcome that B2 must reproduce rather than correct.",
+        "point_value_usd": "10",
+        "r_distance": "13.8418",
+        "stop_inverted": false,
+        "target_price": "4012.59100"
+      },
+      "event_keys": {
+        "alternative": "MGC1!|S|3m|2026-07-09 01:00|4081.3|2026-07-09 01:10|4081.8",
+        "primary": "MGC1!|S|3m|2026-07-09 00:51|4083|2026-07-09 01:00|4081.3|2026-07-09 01:10|4081.8"
+      },
+      "index": 0,
+      "recorded": {
+        "bars_in_trade": 58,
+        "bos_level": "4081.3",
+        "bos_ts_ms": 1783558800000,
+        "bos_ts_utc": "2026-07-09 01:00",
+        "choch_level": "4083",
+        "choch_ts_ms": 1783558260000,
+        "choch_ts_utc": "2026-07-09 00:51",
+        "direction": "S",
+        "entry_price": "4081.8",
+        "entry_ts_ms": 1783559400000,
+        "entry_ts_utc": "2026-07-09 01:10",
+        "exit_reason": "stop",
+        "fold": "A",
+        "fvg_high": "4081.8",
+        "fvg_low": "4081.2",
+        "instrument": "MGC1!",
+        "ltf": "3m",
+        "outcome": "LOSS",
+        "pnl_usd": "-141.42",
+        "r_multiple": "-1.022",
+        "retest_ts_ms": 1783558440000,
+        "retest_ts_utc": "2026-07-09 00:54",
+        "stop_price": "4095.6418",
+        "sweep_extreme": "4094.7",
+        "sweep_kind": "SW",
+        "sweep_ts_ms": 1783556400000,
+        "sweep_ts_utc": "2026-07-09 00:20"
+      }
+    }
+  ],
+  "fills_truncated_at_source": false,
+  "fixture_id": "v53-MGC-S-3m-A",
+  "funnel": {
+    "bos_displacement": 12,
+    "break_no_displacement": 179,
+    "choch": 176,
+    "dropped_no_slot": 0,
+    "expire_post_choch": 37,
+    "expire_post_retest": 127,
+    "expire_pre_choch": 256,
+    "fills": 1,
+    "fold_bars": 10386,
+    "fold_bars_with_ltf": 10386,
+    "fvg": 8,
+    "fvg_retest_expiry": 5,
+    "ltf_bars": null,
+    "no_fvg": 4,
+    "r_band_rejects": 2,
+    "retests": 139,
+    "sweeps": 432
+  },
+  "not_captured": [
+    "5m and LTF pivot confirmations (ta.pivothigh/low) — never emitted per event",
+    "per-sequence displacement qualification — only the aggregate BOS+disp counter",
+    "V53 slot index (0..23) — not emitted in the ledger",
+    "sequences that armed but never filled — only aggregate funnel counters",
+    "per-bar state transitions — the ledger records one row per fill, at fill time",
+    "exit price for timeout exits — only the R multiple and USD are recorded",
+    "ATR at arm, and therefore r_atr_ratio — not emitted per event"
+  ],
+  "performance": {
+    "avg": "-1.0217",
+    "dd_r": "1.022",
+    "dd_usd": "141.42",
+    "exp": "-1.0217",
+    "fills": 1,
+    "losses_stop": 1,
+    "max_consec_losses": 1,
+    "med": "-1.0217",
+    "rpost": "-1.022",
+    "rpre": "-1",
+    "timeouts": 0,
+    "total_usd": "-141.42",
+    "wins": 0,
+    "wr": "0",
+    "zero_trades": false
+  },
+  "provenance": {
+    "attribution_note": "The canonical artifact never executed (Phase 15 provenance correction). The executed artifact is the earliest hashed build of the program that produced this data; it reproduced the committed Phase 13F/14 per-cell results exactly under pooled packaging (p15/POOLED_DESIGN_VERIFICATION.md). No hash was captured at Phase 13F/14 run time, so the executed-artifact hash is an attribution by reproduction, not a contemporaneous record.",
+    "canonical_artifact": "trader_v2/V53_ltf_sequence.pine",
+    "canonical_artifact_sha256": "7490766b6e3de062989a8e7f10939869cc6b679d253ce584f223064aa5797ef5",
+    "executed_artifact": "trader_v2/p15/executed/V53_EXECUTED_BUILD.pine",
+    "executed_artifact_sha256": "2dafbafd5f6731e93c6fc4a2d55048bb32d5c0d75581ed7fffd877a0cf58efe6",
+    "extractor": "bot/tools/extract_golden.py",
+    "extractor_version": "1.0.0",
+    "research_phase": "13F",
+    "source_file": "trader_v2/v53_runs/MGC_S_3m_A.txt",
+    "source_sha256": "0ee09ac986d61e8738664c702298192c62cd7f8d12ac893dd3675fa0b82d1315",
+    "strategy_id": "V53"
+  },
+  "schema_version": 1,
+  "source_notes": []
+}
